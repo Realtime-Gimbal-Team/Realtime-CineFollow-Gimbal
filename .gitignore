@@ -1,0 +1,23 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Build directory
+build/
+bin/
+
+# IDE files
+.vscode/
+.idea/
+
+# Large model files (建议手动下载，不建议存入 git)
+models/*.bin
+models/*.param
+
+# System files
+.DS_Store
