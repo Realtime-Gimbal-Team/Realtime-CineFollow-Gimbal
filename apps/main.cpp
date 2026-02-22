@@ -8,7 +8,7 @@
 int main() {
     SerialPort serial;
     // 树莓派 5 默认的主硬件串口
-    std::string port_name = "/dev/ttyAMA0"; 
+    std::string port_name = "/dev/serial0"; 
 
     std::cout << "[System] Initializing UART on " << port_name << "..." << std::endl;
     // 以 115200 波特率打开串口 [cite: 39]
