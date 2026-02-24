@@ -1,47 +1,55 @@
 #include <iostream>
-#include <thread>
-#include <chrono>
-// 引入刚刚写好的两个头文件
-#include "../include/comm/protocol_def.h"
-#include "../include/comm/SerialPort.h"
+#include <opencv2/opencv.hpp>
+#include <chrono> // 引入 C++11 高精度时间库
 
 int main() {
-    SerialPort serial;
-    // 树莓派 5 默认的主硬件串口
-    std::string port_name = "/dev/serial0"; 
+    std::cout << "[System] Initializing Vision Module..." << std::endl;
+    
+    cv::VideoCapture cap(0, cv::CAP_V4L2);
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
 
-    std::cout << "[System] Initializing UART on " << port_name << "..." << std::endl;
-    // 以 115200 波特率打开串口 [cite: 39]
-    if (!serial.openPort(port_name, 115200)) {
-        std::cerr << "Failed to open port. Did you run with sudo?" << std::endl;
+    if (!cap.isOpened()) {
+        std::cerr << "Error: Cannot open camera!" << std::endl;
         return -1;
     }
 
-    // 1. 组装测试数据包：设定目标角度 [cite: 48]
-    FrameSetAngle frame;
-    frame.header.cmd_id = 0x01; // 0x01 代表设定目标角度 [cite: 48]
-    frame.header.data_len = sizeof(PayloadSetAngle);
-    frame.payload.pitch = 0.0f;
-    frame.payload.yaw = 15.5f;
-
-    // 2. 计算强化的校验和 (CMD_ID + Data_Len + Payload 累加和的低 8 位) 
-    uint8_t sum = 0;
-    sum += frame.header.cmd_id;
-    sum += frame.header.data_len;
-    uint8_t* p = (uint8_t*)&frame.payload;
-    for(size_t i = 0; i < sizeof(PayloadSetAngle); i++) {
-        sum += p[i];
-    }
-    frame.checksum = sum; // uint8_t 自动保留低 8 位 [cite: 44]
-
-    // 3. 循环发送测试
-    std::cout << "[Test] Ready to send. Yaw=" << frame.payload.yaw << ", Checksum=" << (int)frame.checksum << std::endl;
-    for(int i = 0; i < 5; i++) {
-        serial.sendData(frame);
-        std::cout << "Packet " << i + 1 << " sent!" << std::endl;
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    cv::Mat frame;
+    std::cout << "[System] Warming up sensor (waiting for Auto-Exposure)..." << std::endl;
+    // 强制预热 60 帧，保证画面不黑
+    for(int i = 0; i < 30; i++) {
+        cap >> frame;
     }
 
-    serial.closePort();
+    if (frame.empty()) {
+        std::cerr << "Error: Blank frame grabbed" << std::endl;
+        return -1;
+    }
+
+    // --- 【核心漏洞修复：注入微秒级时间戳】 ---
+    // 1. 记录画面刚刚存入 frame 矩阵的瞬间绝对时间
+    auto capture_time = std::chrono::high_resolution_clock::now();
+    // 2. 将时间点转换为微秒 (microseconds) 级别的长整型数值
+    auto time_micro = std::chrono::time_point_cast<std::chrono::microseconds>(capture_time).time_since_epoch().count();
+    
+    std::cout << "[Latency Profiler] Frame captured at absolute time: " << time_micro << " us" << std::endl;
+
+    // 为了直观验证，我们将时间戳直接画在测试图片上
+    std::string time_str = "Capture Time: " + std::to_string(time_micro) + " us";
+    cv::putText(frame, time_str, cv::Point(20, 50), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 255, 0), 2);
+    cv::putText(frame, "Latency Foundation Ready!", cv::Point(20, 90), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 255, 0), 2);
+
+    // 保存图片
+    bool isSaved = cv::imwrite("timestamp_test.jpg", frame);
+    
+    if (isSaved) {
+        std::cout << "[Success] Frame saved to timestamp_test.jpg!" << std::endl;
+    } else {
+        std::cerr << "[Error] Failed to save image." << std::endl;
+    }
+
+    cap.release();
     return 0;
 }
