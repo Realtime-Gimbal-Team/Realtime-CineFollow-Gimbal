@@ -1,39 +1,47 @@
 #include "pico/stdlib.h"
 #include <stdio.h>
-#include "Motor.h"
-#include "UART_Parser.h"
+#include "../include/Motor.h"
+#include "../include/UART_Parser.h"
 
 int main() {
     stdio_init_all();
 
-    // 1. 创建两个电机本体 (烧录引脚记忆)
-    Motor pitch_motor(0, 1, 2, 3);
-    Motor yaw_motor(4, 5, 6, 7);
+    // 等待 USB 串口，方便监控
+    while (!stdio_usb_connected()) {
+        sleep_ms(100);
+    }
+    printf("\n[SYSTEM] Project Migrated to UART1 (GP4/GP5)...\n");
 
-    // 2. 厂长训话初始化
-    pitch_motor.init();
-    yaw_motor.init();
-
-    // 3. 聘用前台秘书，并把电机的遥控器（指针）交给他
+    // 1. 初始化模拟电机对象
+    Motor pitch_motor(2, 3, 4, 5);
+    Motor yaw_motor(6, 7, 8, 9);
     UART_Parser uart_parser(&pitch_motor, &yaw_motor);
 
-    uint32_t last_telemetry_time = 0; 
+    // 2. 初始化 UART1 (使用你测试通过的 4 和 5 号引脚)
+    // 强制指定 uart1，避开被占用的 uart0
+    uart_parser.init(uart1, 4, 5, 115200);
 
-    // 4. 进入永不阻塞的终极循环
+    uint32_t last_heartbeat = 0;
+
     while (true) {
-        // 秘书光速查收串口快递
+        uint32_t now = to_ms_since_boot(get_absolute_time());
+
+        // --- 核心 A: 高频解析 (使用 uart1) ---
         uart_parser.spinOnce();
 
-        // 厨师疯狂颠勺运算 FOC
+        // --- 核心 B: 心跳监视 ---
+        if (now - last_heartbeat > 500) {
+            printf("."); 
+            fflush(stdout);
+            last_heartbeat = now;
+        }
+
+        // --- 核心 C: 电机平滑控制 (目前仅做计算) ---
         pitch_motor.loopFOC();
         yaw_motor.loopFOC();
-
-        // 每隔 20 毫秒，向树莓派汇报一次当前阵地情况 (50Hz)
-        uint32_t current_time = to_ms_since_boot(get_absolute_time());
-        if (current_time - last_telemetry_time >= 20) { 
-            uart_parser.sendTelemetry(12.0f, 0x02);
-            last_telemetry_time = current_time; 
-        }
+        
+        // 维持控制频率
+        sleep_ms(1);
     }
     return 0;
 }

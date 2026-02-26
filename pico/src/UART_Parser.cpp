@@ -1,100 +1,65 @@
 #include "../include/UART_Parser.h"
-#include "pico/stdlib.h"
 #include <stdio.h>
 #include <string.h>
 
-UART_Parser::UART_Parser(Motor* pitch, Motor* yaw) {
-    pitch_motor = pitch;
-    yaw_motor = yaw;
-    current_state = WAIT_HEAD1;
+UART_Parser::UART_Parser(Motor* p, Motor* y) : pitch_motor(p), yaw_motor(y), uart_port(nullptr) {}
+
+void UART_Parser::init(uart_inst_t* uart, uint tx_pin, uint rx_pin, uint baud) {
+    this->uart_port = uart; // 这里现在接收的是 uart1
+    uart_init(uart, baud);
+    gpio_set_function(tx_pin, GPIO_FUNC_UART);
+    gpio_set_function(rx_pin, GPIO_FUNC_UART);
+    uart_set_hw_flow(uart, false, false);
 }
 
 void UART_Parser::spinOnce() {
-    int c = getchar_timeout_us(0); // 绝对不阻塞的灵魂！
-    while (c != PICO_ERROR_TIMEOUT) {
-        parseByte((uint8_t)c);     
-        c = getchar_timeout_us(0); 
+    if (!uart_port) return;
+    while (uart_is_readable(uart_port)) {
+        uint8_t b = uart_getc(uart_port);
+        // 如果想看树莓派发来的原始 16 进制，可以开启下面这行
+        // printf("%02X ", b); fflush(stdout);
+        parseByte(b);
     }
 }
 
 void UART_Parser::parseByte(uint8_t b) {
-    switch (current_state) {
+    switch (currentState) {
         case WAIT_HEAD1:
-            if (b == 0x55) current_state = WAIT_HEAD2;
+            if (b == 0x55) currentState = WAIT_HEAD2;
             break;
-            
         case WAIT_HEAD2:
-            if (b == 0xAA) current_state = WAIT_CMD;
-            else current_state = WAIT_HEAD1; 
+            if (b == 0xAA) currentState = WAIT_CMD;
+            else currentState = WAIT_HEAD1;
             break;
-            
         case WAIT_CMD:
-            cmd_id = b;
-            calculated_checksum = b;        
-            current_state = WAIT_LEN;
+            current_cmd = b;
+            currentState = WAIT_LEN;
             break;
-            
         case WAIT_LEN:
-            data_len = b;
-            calculated_checksum += b;
-            payload_idx = 0;
-            if (data_len > sizeof(payload_buffer)) current_state = WAIT_HEAD1; 
-            else if (data_len > 0) current_state = WAIT_PAYLOAD;
-            else current_state = WAIT_CHECKSUM;
+            target_len = b;
+            data_idx = 0;
+            currentState = (target_len > 0) ? STATE_DATA : WAIT_CKSM;
             break;
-            
-        case WAIT_PAYLOAD:
-            payload_buffer[payload_idx++] = b;
-            calculated_checksum += b;
-            if (payload_idx >= data_len) current_state = WAIT_CHECKSUM;
+        case STATE_DATA:
+            data_buffer[data_idx++] = b;
+            if (data_idx >= target_len) currentState = WAIT_CKSM;
             break;
-            
-        case WAIT_CHECKSUM:
-            if (b == calculated_checksum) current_state = WAIT_TAIL;
-            else current_state = WAIT_HEAD1; // 校验失败，无情反杀！
+        case WAIT_CKSM: {
+            uint8_t sum = current_cmd + target_len;
+            for (int i = 0; i < target_len; i++) sum += data_buffer[i];
+            if (sum == b) currentState = WAIT_TAIL;
+            else currentState = WAIT_HEAD1;
             break;
-            
+        }
         case WAIT_TAIL:
-            if (b == 0x0D) executeCommand(); 
-            current_state = WAIT_HEAD1;      
+            if (b == 0x0D) {
+                PayloadSetAngle p;
+                memcpy(&p, data_buffer, 8);
+                pitch_motor->setTargetAngle(p.pitch);
+                yaw_motor->setTargetAngle(p.yaw);
+                printf("\n[V1.2 RX SUCCESS] P:%.2f, Y:%.2f", p.pitch, p.yaw);
+            }
+            currentState = WAIT_HEAD1;
             break;
-    }
-}
-
-void UART_Parser::executeCommand() {
-    if (cmd_id == 0x01 && data_len == sizeof(PayloadSetAngle)) {
-        PayloadSetAngle angles;
-        memcpy(&angles, payload_buffer, sizeof(PayloadSetAngle)); 
-        
-        pitch_motor->setTargetAngle(angles.pitch);
-        yaw_motor->setTargetAngle(angles.yaw);
-        
-        printf("【指令下达】目标 Pitch: %.1f, Yaw: %.1f\n", angles.pitch, angles.yaw);
-    }
-}
-
-void UART_Parser::sendTelemetry(float battery_voltage, uint8_t status_flags) {
-    uint8_t buffer[19]; 
-    
-    buffer[0] = 0x55; buffer[1] = 0xAA;
-    buffer[2] = 0x10; buffer[3] = sizeof(PayloadTelemetry); 
-
-    PayloadTelemetry payload;
-    payload.current_pitch = pitch_motor->getCurrentAngle();
-    payload.current_yaw = yaw_motor->getCurrentAngle();
-    payload.battery_voltage = battery_voltage;
-    payload.status_flags = status_flags;
-
-    memcpy(&buffer[4], &payload, sizeof(PayloadTelemetry));
-
-    uint8_t checksum = buffer[2] + buffer[3];
-    for(int i = 0; i < sizeof(PayloadTelemetry); i++) {
-        checksum += buffer[4 + i];
-    }
-    buffer[17] = checksum; 
-    buffer[18] = 0x0D;     
-
-    for(int i = 0; i < 19; i++) {
-        putchar(buffer[i]);
     }
 }

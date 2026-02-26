@@ -1,0 +1,86 @@
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "hardware/timer.h"
+#include "UART_Parser.h"
+// #include "Motor.h" // 暂时注释，等通讯彻底跑通再接电机
+
+// ==========================================
+// 【编译续命符】实例化全局假对象，消灭 SimpleFOC 的链接报错
+// ==========================================
+class Print Serial;
+class SPIClass SPI;
+class TwoWire Wire;
+
+// ==========================================
+// 联调主程序
+// ==========================================
+int main() {
+    // 1. 初始化标准输入输出 (用于 USB 监视器打印)
+    stdio_init_all();
+    
+    // 给 USB 串口留点时间枚举连接 (防止漏看开机信息)
+    sleep_ms(2000); 
+
+
+    // 2. 严格初始化硬件串口中断 (波特率 115200, TX=GP0, RX=GP1)
+    // 确保树莓派 5 已经共地，并且交叉连接了 RX/TX
+    UART_Parser::getInstance().init(uart0, 0, 1, 115200);
+
+    sleep_ms(2000); 
+
+    
+    printf("\n========================================\n");
+    printf("[Pico Gimbal] ENG 5220 - Comm Test Booting\n");
+    printf("========================================\n");
+
+    
+    printf("UART0 Interrupt Initialized. Waiting for data...\n");
+
+    // 状态变量
+    PayloadSetAngle latest_cmd;
+    uint32_t last_valid_time = time_us_32();
+    bool is_timeout = false;
+    uint32_t frame_count = 0;
+
+    // 3. 硬实时事件驱动主循环
+    while (true) {
+        
+        // --- 任务 A: 非阻塞极速拉取数据 ---
+        if (UART_Parser::getInstance().getLatestTargetAngle(latest_cmd)) {
+            // 刷新看门狗时间戳
+            last_valid_time = time_us_32();
+            
+            if (is_timeout) {
+                is_timeout = false;
+                printf("\n[SYSTEM] Connection Restored! Mode: ACTIVE\n");
+            }
+
+            frame_count++;
+            // 降频打印：为了防止 printf 阻塞主循环，每收到 10 帧打印一次
+            // 在实际 100Hz 的发送频率下，这大约是 10Hz 的屏幕刷新率
+            if (frame_count % 10 == 0) {
+                printf("[Rx Frame %u] Pitch: %7.2f | Yaw: %7.2f\n", 
+                       frame_count, latest_cmd.pitch, latest_cmd.yaw);
+            }
+            
+            // TODO: 未来在此处调用 motor_pitch.setTargetAngle()
+        }
+
+        // --- 任务 B: 硬件级看门狗 (Watchdog) - 协议文档第 4 节 ---
+        // 如果连续 500,000 微秒 (500ms) 未收到有效数据
+        if (!is_timeout && (time_us_32() - last_valid_time > 500000)) {
+            is_timeout = true;
+            printf("\n[ALARM] 500ms Timeout! Signal Lost.\n");
+            printf("[SYSTEM] Force Switching to IDLE/LOCKED Mode!\n");
+            
+            // TODO: 未来在此处调用 motor.disable() 切断电机动力防疯转
+        }
+
+        // --- 任务 C: 模拟 FOC 10kHz 控制环延迟 ---
+        // 确保主循环频率不会无限高，模拟真实情况下的 CPU 占用
+        // 在最终接入 SimpleFOC 硬件定时器后，应删除此延时
+        sleep_us(100); 
+    }
+    
+    return 0;
+}

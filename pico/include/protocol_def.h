@@ -1,21 +1,23 @@
 #pragma once
 #include <stdint.h>
 
-// 强制编译器不要优化内存对齐，保证数据挨个紧凑存放
-#pragma pack(push, 1)
+#pragma pack(push, 1) 
+struct FrameHeader {
+    uint8_t head1 = 0x55;
+    uint8_t head2 = 0xAA;
+    uint8_t cmd_id = 0x01;
+    uint8_t data_len = 0x08;
+};
 
-// 0x01 指令的模具：接收目标角度
 struct PayloadSetAngle {
-    float pitch;
-    float yaw;
+    float pitch; 
+    float yaw;   
 };
 
-// 0x10 指令的模具：上报当前状态
-struct PayloadTelemetry {
-    float current_pitch;
-    float current_yaw;
-    float battery_voltage;
-    uint8_t status_flags;
+struct FrameSetAngle {
+    FrameHeader header;
+    PayloadSetAngle payload;
+    uint8_t checksum;
+    uint8_t tail = 0x0D;
 };
-
 #pragma pack(pop)
