@@ -26,6 +26,11 @@ VisionProcessor: Handles frame buffers and object detection using STL containers
 ThreadManager: Manages real-time thread priorities and safe data exchange.
 
 ## 👉 Division of responsibilities among team members
+- **Yining Liu(3153782Y)**:Led system decision-making, visual algorithm development, and attitude sensing; implemented YOLO + ByteTrack deployment, IMU sensor fusion, gimbal control logic, and latency-oriented performance evaluation.
+- **Zongwei Xie (3085969X)**:Developed the low-level motor control and hardware execution layer; implemented the motor driver based on SimpleFOC, tuned PID control loops, and handled real-time UART communication and protocol parsing.
+- **Yifei Wang (3147822W)**: Designed and implemented user interaction and physical data visualization; developed OLED display functions, button-based mode switching, and event-driven interaction logic using interrupts or callbacks.
+- **Yandong Fan (3159430F)**: Took charge of reliability engineering and latency assessment; built quantitative timing tools, supported unit testing for core modules, and carried out memory and fault management checks.
+- **Chenxu Li (3091645L)**:Managed project coordination, revision control, and external promotion; defined Git branching and issue-tracking workflows, prepared reproducible project documentation, and supported public outreach on social media.
 
 ## **🚀 Development Progress**
 
@@ -35,14 +40,36 @@ ThreadManager: Manages real-time thread priorities and safe data exchange.
 
 🔄 Optimization of real-time data processing ·········································································✅[Completed]
 
-🔄 Enhancing user interaction (touch buttons & LED animation) ·································✅[Completed]
+🔄 Enhancing user interaction  ·································✅[Completed]
 
 🔄 Software testing & debugging ··································································································✅[Completed]
 
 📢 Project promotion (social media & Hackaday) ·································································✅[Completed]
 
 ## **🎯 Key Features**
+✅ Real-time Object Tracking (YOLO + ByteTrack)
+A deep learning–based vision pipeline is deployed on Raspberry Pi to perform real-time object detection and identity tracking, providing stable target coordinates for control.
 
+✅ Gimbal Attitude Estimation (IMU Sensor Fusion)
+IMU data is fused to estimate the gimbal’s orientation (Yaw/Pitch) with smooth and stable outputs, improving overall system accuracy and robustness.
+
+✅ Smooth Motion Control (Gimbal Logic)
+Camera motion principles are translated into control algorithms, incorporating S-curve smoothing, deadzone filtering, and target motion prediction for natural and cinematic movement.
+
+✅ High-Precision Motor Control (FOC + PID)
+Brushless motors are driven using the SimpleFOC framework, with well-tuned position and velocity PID loops to achieve precise and low-vibration actuation.
+
+✅ Low-Latency Communication Architecture
+Efficient UART communication combined with interrupt/callback mechanisms ensures fast and reliable transmission between the vision module and motor controller.
+
+✅ OLED-Based Real-time Visualization & Interaction
+A 0.96" OLED display provides real-time feedback including orientation angles, system runtime, and detection confidence, along with button-based mode switching.
+
+✅ Quantitative Latency Assessment
+A dedicated C++ tool measures the full pipeline delay (from vision detection to motor response) with microsecond-level precision, ensuring real-time performance.
+
+✅ Robustness & Reliability Engineering
+Unit testing (Google Test) and memory analysis (Valgrind) are applied to ensure system stability, safety, and fail-safe operation.
 ## **🔧 Hardware Components**
 
 ## **💻 Software Architecture**
