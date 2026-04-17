@@ -1,7 +1,7 @@
 # Realtime-CineFollow-Gimbal
 CineFollow-Gimbal is a real-time, shooting-oriented pan–tilt gimbal designed as an intelligent camera accessory. It uses vision-based feedback to smoothly keep a subject centred in frame. The current prototype supports smartphone payloads, with future compatibility planned for mirrorless and cinema cameras via standard 1/4-inch mounts.
 
-📌 Project Overview
+## **📌 Project Overview**
 
 Real-time Requirements : This project addresses a solid real-time requirement where any delay in image processing or PID calculation would result in jerky motion or tracking loss. 
 
@@ -25,9 +25,9 @@ VisionProcessor: Handles frame buffers and object detection using STL containers
 
 ThreadManager: Manages real-time thread priorities and safe data exchange.
 
-👉 Division of responsibilities among team members
+## 👉 Division of responsibilities among team members
 
-🚀 Development Progress
+## **🚀 Development Progress**
 
 🔄 Hardware selection & procurement ························································································✅[Completed]
 
@@ -41,4 +41,23 @@ ThreadManager: Manages real-time thread priorities and safe data exchange.
 
 📢 Project promotion (social media & Hackaday) ·································································✅[Completed]
 
-🎯 Key Features
+## **🎯 Key Features**
+
+## **🔧 Hardware Components**
+
+## **💻 Software Architecture**
+
+## **📝3rd Party Components**
+
+## **🧠 Reference & Tutorials**
+
+## **📊 Test & Assessment**
+
+## **📢 Future Improvements**
+
+## **🔗 Relevant Links**
+
+[**Documentation 📝**]()  
+[**GitHub Repository 🔗**]()  
+[**Demo Video 🎥**]()  
+[**Social Media Promotion 📢**]()
