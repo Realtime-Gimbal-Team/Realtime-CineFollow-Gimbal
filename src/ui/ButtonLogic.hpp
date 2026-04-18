@@ -17,10 +17,10 @@ public:
 
     ButtonLogic(ButtonConfig cfg, Callback cb);
 
-    // 输入：按键电平变化（true=按下，false=松开）
+
     void onLevelChanged(bool pressed, TimePoint now);
 
-    // 需要周期调用：用于“双击窗口超时后确认单击”
+
     void poll(TimePoint now);
 
 private:

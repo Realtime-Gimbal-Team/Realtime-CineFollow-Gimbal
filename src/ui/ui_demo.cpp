@@ -56,7 +56,7 @@ int main() {
             std::cout << "Unknown. Use p/r/q\n";
         }
 
-        // 处理一次 poll，帮助快速触发超时 click
+
         button.poll(Clock::now());
     }
 }
