@@ -1,47 +1,156 @@
+#include <SimpleFOC.h>
 #include "pico/stdlib.h"
-#include <stdio.h>
-#include "../include/Motor.h"
+#include "hardware/timer.h"
+#include "hardware/clocks.h" 
+#include <math.h>
 #include "../include/UART_Parser.h"
+
+// ================= 引脚与硬件配置 =================
+#define PITCH_IN1 2
+#define PITCH_IN2 4
+#define PITCH_IN3 6
+#define PITCH_EN  16 
+
+#define YAW_IN1   10
+#define YAW_IN2   11
+#define YAW_IN3   12
+#define YAW_EN    15 
+
+// ================= 动力物理参数 =================
+const float POLE_PAIRS = 11.0f;
+const float VOLTAGE_SUPPLY = 12.0f;
+const float PITCH_VOL_LIMIT = 4.5f; 
+const float YAW_VOL_LIMIT   = 4.5f; 
+
+volatile float target_pitch_vel = 0.0f;
+volatile float target_yaw_vel   = 0.0f; 
+volatile float current_pitch_angle = 0.0f; 
+volatile float current_yaw_angle = 0.0f;  
+
+// 诊断变量
+volatile uint32_t raw_rx_byte_count = 0;
+volatile uint32_t err_cksm = 0;
+volatile uint32_t err_tail = 0;
+
+// 🌟 物理平滑与软启动变量
+volatile bool is_soft_starting = true;
+volatile float current_pitch_vol = 0.0f; 
+volatile float current_yaw_vol = 0.0f;
+volatile float smooth_pitch_vel = 0.0f;  
+volatile float smooth_yaw_vel = 0.0f;
+
+// 极速正弦查找表
+static float sin_lut[256];
+void init_sin_lut() {
+    for (int i = 0; i < 256; i++) {
+        sin_lut[i] = sinf((float)i * 6.2831853f / 256.0f);
+    }
+}
+
+inline float fast_sin(float angle) {
+    float angle_norm = fmodf(angle, 6.2831853f);
+    if (angle_norm < 0) angle_norm += 6.2831853f;
+    int index = (int)(angle_norm * 40.74366f); 
+    return sin_lut[index & 0xFF];
+}
+
+BLDCDriver3PWM pitch_driver(PITCH_IN1, PITCH_IN2, PITCH_IN3, PITCH_EN);
+BLDCDriver3PWM yaw_driver(YAW_IN1, YAW_IN2, YAW_IN3, YAW_EN);
+UART_Parser uart_parser;
+
+// ================= 500Hz 硬实时控制中断 =================
+bool spwm_timer_callback(struct repeating_timer *t) {
+    const float dt = 0.002f; 
+    const float U_center = VOLTAGE_SUPPLY / 2.0f;
+
+    // 🌟 1. 真正的软对齐 (Soft-Start Alignment)
+    // 即使速度为0，电压也在缓步爬升，将转子像吸铁石一样温柔地吸到 0 度位置
+    if (is_soft_starting) {
+        current_pitch_vol += 2.0f * dt; // 爬升率：2V/s
+        current_yaw_vol += 2.0f * dt;
+        if (current_pitch_vol >= PITCH_VOL_LIMIT) current_pitch_vol = PITCH_VOL_LIMIT;
+        if (current_yaw_vol >= YAW_VOL_LIMIT) current_yaw_vol = YAW_VOL_LIMIT;
+        if (current_pitch_vol == PITCH_VOL_LIMIT && current_yaw_vol == YAW_VOL_LIMIT) {
+            is_soft_starting = false; 
+        }
+    }
+
+    // 🌟 2. 梯形加速度限制器
+    const float max_accel = 6.0f; 
+    const float max_delta_v = max_accel * dt; 
+
+    if (target_pitch_vel > smooth_pitch_vel + max_delta_v) smooth_pitch_vel += max_delta_v; 
+    else if (target_pitch_vel < smooth_pitch_vel - max_delta_v) smooth_pitch_vel -= max_delta_v; 
+    else smooth_pitch_vel = target_pitch_vel; 
+
+    if (target_yaw_vel > smooth_yaw_vel + max_delta_v) smooth_yaw_vel += max_delta_v;
+    else if (target_yaw_vel < smooth_yaw_vel - max_delta_v) smooth_yaw_vel -= max_delta_v;
+    else smooth_yaw_vel = target_yaw_vel;
+
+    // 🌟 3. 全时全功率发波 (坚决不撒手！)
+    current_pitch_angle += smooth_pitch_vel * dt;
+    float p_elec = current_pitch_angle * POLE_PAIRS;
+    float p_amp = current_pitch_vol; // 即使速度为0，依然保持输出额定电压！
+    
+    pitch_driver.setPwm(
+        U_center + p_amp * fast_sin(p_elec),
+        U_center + p_amp * fast_sin(p_elec - 2.0944f), 
+        U_center + p_amp * fast_sin(p_elec - 4.1888f)  
+    );
+
+    current_yaw_angle += smooth_yaw_vel * dt;
+    float y_elec = current_yaw_angle * POLE_PAIRS;
+    float y_amp = current_yaw_vol; 
+
+    yaw_driver.setPwm(
+        U_center + y_amp * fast_sin(y_elec),
+        U_center + y_amp * fast_sin(y_elec - 2.0944f),
+        U_center + y_amp * fast_sin(y_elec - 4.1888f)
+    );
+
+    return true; 
+}
 
 int main() {
     stdio_init_all();
+    init_sin_lut(); 
+    sleep_ms(2000); 
 
-    // 等待 USB 串口，方便监控
-    while (!stdio_usb_connected()) {
-        sleep_ms(100);
-    }
-    printf("\n[SYSTEM] Project Migrated to UART1 (GP4/GP5)...\n");
+    set_sys_clock_khz(133000, true);
 
-    // 1. 初始化模拟电机对象
-    Motor pitch_motor(2, 3, 4, 5);
-    Motor yaw_motor(6, 7, 8, 9);
-    UART_Parser uart_parser(&pitch_motor, &yaw_motor);
+    gpio_init(PITCH_EN); gpio_set_dir(PITCH_EN, GPIO_OUT); gpio_put(PITCH_EN, 1);
+    gpio_init(YAW_EN);   gpio_set_dir(YAW_EN,   GPIO_OUT); gpio_put(YAW_EN,   1);
 
-    // 2. 初始化 UART1 (使用你测试通过的 4 和 5 号引脚)
-    // 强制指定 uart1，避开被占用的 uart0
-    uart_parser.init(uart1, 4, 5, 115200);
+    pitch_driver.voltage_power_supply = VOLTAGE_SUPPLY;
+    pitch_driver.init(); 
+    pitch_driver.enable();
 
-    uint32_t last_heartbeat = 0;
+    yaw_driver.voltage_power_supply = VOLTAGE_SUPPLY;
+    yaw_driver.init(); 
+    yaw_driver.enable();
+
+    uart_parser.init(uart0, 0, 1, 115200);
+
+    struct repeating_timer timer;
+    // 启动中断后，软启动逻辑立刻开始工作，此时电机将被锁定在当前位置
+    add_repeating_timer_us(-2000, spwm_timer_callback, NULL, &timer);
+
+    uint32_t last_print_time = 0;
 
     while (true) {
         uint32_t now = to_ms_since_boot(get_absolute_time());
+        uint32_t last_rx = uart_parser.getLastRxTime();
 
-        // --- 核心 A: 高频解析 (使用 uart1) ---
-        uart_parser.spinOnce();
-
-        // --- 核心 B: 心跳监视 ---
-        if (now - last_heartbeat > 500) {
-            printf("."); 
-            fflush(stdout);
-            last_heartbeat = now;
+        if (now - last_print_time >= 200) {
+            last_print_time = now;
+            if ((now - last_rx) > 500) {
+                target_pitch_vel = 0.0f;
+                target_yaw_vel   = 0.0f;
+                printf("[SAFE] Timeout! Bytes: %u | ErrCK: %u\n", raw_rx_byte_count, err_cksm);
+            } else {
+                printf("[LIVE] P:%.2f Y:%.2f | ErrCK: %u\n", target_pitch_vel, target_yaw_vel, err_cksm);
+            }
         }
-
-        // --- 核心 C: 电机平滑控制 (目前仅做计算) ---
-        pitch_motor.loopFOC();
-        yaw_motor.loopFOC();
-        
-        // 维持控制频率
-        sleep_ms(1);
     }
     return 0;
 }
