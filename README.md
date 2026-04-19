@@ -71,8 +71,6 @@ A dedicated C++ tool measures the full pipeline delay (from vision detection to 
 ✅ Robustness & Reliability Engineering
 Unit testing (Google Test) and memory analysis (Valgrind) are applied to ensure system stability, safety, and fail-safe operation.
 ## **🔧 Hardware Components**
-
-## **💻 Software Architecture**
 | Component                        | Specification                   | Quantity | Purpose                                                                 |
 | -------------------------------- | ------------------------------- | -------: | ----------------------------------------------------------------------- |
 | Raspberry Pi Pico 2              | Microcontroller board           |        1 | Low-level motor control and embedded task execution                     |
@@ -93,6 +91,9 @@ Unit testing (Google Test) and memory analysis (Valgrind) are applied to ensure 
 | Phone Clamp                      | Adjustable holder               |        1 | Holds the mobile phone securely on the gimbal platform                  |
 | iPhone 13 mini                   | Smartphone payload              |        1 | Target payload for stabilization and tracking demonstration             |
 | M2 / M2.5 Screws and Nuts        | Fasteners                       | Assorted | Mechanical assembly and structural fixing                               |
+
+## **💻 Software Architecture**
+
 
 ## **📝3rd Party Components**
 
