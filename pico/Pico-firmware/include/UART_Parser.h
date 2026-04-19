@@ -2,13 +2,13 @@
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 
-// 彻底删除 class Motor 的前置声明
+// Completely remove the forward declaration of class Motor
 
 enum ParserState { WAIT_HEAD1, WAIT_HEAD2, WAIT_CMD, WAIT_LEN, STATE_DATA, WAIT_CKSM, WAIT_TAIL };
 
 class UART_Parser {
 private:
-    // 彻底删除 pitch_motor 和 yaw_motor 的指针成员
+    // Completely remove the pointer members for pitch_motor and yaw_motor
     uart_inst_t* uart_port;
 
     ParserState currentState = WAIT_HEAD1;
@@ -17,13 +17,13 @@ private:
     uint8_t data_idx = 0;
     uint8_t data_buffer[16];
 
-    // 通讯安全看门狗的时间戳
+    // Timestamp for the communication safety watchdog
     volatile uint32_t last_valid_rx_time; 
 
     void parseByte(uint8_t b);
 
 public:
-    // 构造函数不再需要传入任何参数
+    // The constructor no longer requires any parameters
     UART_Parser(); 
     void init(uart_inst_t* uart, uint tx_pin, uint rx_pin, uint baud);
     void handle_rx_irq();
