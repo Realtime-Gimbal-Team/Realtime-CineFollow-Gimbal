@@ -72,6 +72,29 @@ A dedicated C++ tool measures the full pipeline delay (from vision detection to 
 Unit testing (Google Test) and memory analysis (Valgrind) are applied to ensure system stability, safety, and fail-safe operation.
 ## **🔧 Hardware Components**
 
+Project hardware list (current)
+| Category | Item | Qty | Notes |
+|---|---|---:|---|
+| Compute & Control | Raspberry Pi 5 | 1 | Main controller |
+| Compute & Control | Raspberry Pi 5 Active Cooler | 1 | Cooling for sustained load |
+| Compute & Control | Pico 2 | 1 | Auxiliary MCU / real-time I/O (if used) |
+| Vision | Raspberry Pi Camera Module 3 (Camera3) | 1 | Main camera |
+| Vision | Camera ribbon cable | 1 | CSI ribbon cable |
+| Actuation | GM3506 Gimbal Motor | 2 | Pitch + Yaw |
+| Motor Driver | SimpleFOC mini dual driver board (1-to-2) | 1 | Drives 2 gimbal motors |
+| Power | Auline 4800mAh LiPo battery | 1 | Main power source |
+| Power | XT60 cable | 1 | Battery connection |
+| Power | XT60 1-to-2 splitter cable | 1 | Split battery to multiple loads |
+| Power | USB-C 5V buck converter module | 1 | Step-down to 5V for Raspberry Pi |
+| Wiring & Connectors | Dupont jumper wires | 1 set | General wiring |
+| Wiring & Connectors | XH2.54 5-pin Dupont cable | 1 | 2.54mm pitch, 5-pin |
+| Mechanical | 3D-printed base | 1 | Structural mount |
+| Mechanical | 3D-printed gimbal arms | 1 set | Axis arms / brackets |
+| Mechanical | Phone clamp | 1 | Phone holder |
+| Payload | iPhone 13 mini | 1 | Payload / demo device |
+| Fasteners | M2 screws & nuts | assorted | Assembly |
+| Fasteners | M2.5 screws & nuts | assorted | Assembly |
+
 ## **💻 Software Architecture**
 
 ## **📝3rd Party Components**
