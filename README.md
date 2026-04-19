@@ -73,6 +73,26 @@ Unit testing (Google Test) and memory analysis (Valgrind) are applied to ensure 
 ## **🔧 Hardware Components**
 
 ## **💻 Software Architecture**
+| Component                        | Specification                   | Quantity | Purpose                                                                 |
+| -------------------------------- | ------------------------------- | -------: | ----------------------------------------------------------------------- |
+| Raspberry Pi Pico 2              | Microcontroller board           |        1 | Low-level motor control and embedded task execution                     |
+| Raspberry Pi 5                   | Single-board computer           |        1 | Main processing unit for vision, control logic, and system coordination |
+| Raspberry Pi 5 Active Cooler     | Official active cooling module  |        1 | Thermal management for stable Raspberry Pi 5 operation                  |
+| GM3506 Gimbal Motor              | Brushless gimbal motor          |        2 | Two-axis gimbal actuation for yaw and pitch movement                    |
+| Auline 4800mAh LiPo Battery      | Rechargeable LiPo battery       |        1 | Portable power supply for the whole system                              |
+| XT60 One-to-Two Cable            | XT60 splitter cable             |        1 | Power distribution from battery to multiple modules                     |
+| XT60 Cable                       | Standard XT60 power cable       |        1 | Main battery connection and power transmission                          |
+| USB-C 5V Buck Converter Module   | DC step-down module             |        1 | Converts battery voltage to stable 5V supply for electronics            |
+| SimpleFOC Mini Dual Driver Board | One-driver-for-two-motors board |        1 | Drives and controls the two gimbal motors                               |
+| Raspberry Pi Camera Module 3     | Official camera module          |        1 | Visual input for object detection and tracking                          |
+| Camera Ribbon Cable              | CSI camera cable                |        1 | Connects Camera Module 3 to Raspberry Pi 5                              |
+| Dupont Wires                     | Various jumper wires            |        - | General signal and power wiring between modules                         |
+| 3D Printed Base                  | Custom structural part          |        1 | Mechanical support for mounting the system components                   |
+| 3D Printed Gimbal Arm            | Custom axis arm structure       |    1 set | Supports motor installation and gimbal movement                         |
+| XH2.54 5-Pin Cable               | 5-pin Dupont/JST-style cable    |        1 | Electrical connection between driver board and motors/sensors           |
+| Phone Clamp                      | Adjustable holder               |        1 | Holds the mobile phone securely on the gimbal platform                  |
+| iPhone 13 mini                   | Smartphone payload              |        1 | Target payload for stabilization and tracking demonstration             |
+| M2 / M2.5 Screws and Nuts        | Fasteners                       | Assorted | Mechanical assembly and structural fixing                               |
 
 ## **📝3rd Party Components**
 
