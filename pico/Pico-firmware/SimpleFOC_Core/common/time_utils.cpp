@@ -1,19 +1,19 @@
 #include "time_utils.h"
-#include "pico/stdlib.h" // 🌟 必须显式引入 Pico 原生 SDK 库
+#include "pico/stdlib.h" // 🌟 Must explicitly include the native Pico SDK libraries
 
 // ---------------------------------------------------------
-// 强行接管延时函数，彻底抛弃 Arduino 的 delay()
+// Forcefully take over the delay function and completely abandon Arduino's delay()
 // ---------------------------------------------------------
 void _delay(unsigned long ms) {
-    // 直接调用 Pico SDK 原生的非阻塞毫秒延时
+    // Directly call the Pico SDK's native non-blocking millisecond delay
     sleep_ms(ms);
 }
 
 // ---------------------------------------------------------
-// 强行接管时间戳函数，彻底消灭时间冻结！
+//  Forcefully take over the timestamp function and completely eliminate time freezing!
 // ---------------------------------------------------------
 unsigned long _micros() {
-    // 暴力读取 RP2350 底层的 32位 硬件定时器
-    // 它的返回值类型 uint32_t 与 unsigned long 完美匹配，绝对精准
+    //  Directly read the RP2350's low-level 32-bit hardware timer
+    // Its return type, uint32_t, matches unsigned long perfectly and ensures absolute precision
     return time_us_32();
 }
