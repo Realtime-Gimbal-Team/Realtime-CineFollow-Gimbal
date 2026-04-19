@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-// 🌟 声明：这些变量实体在 main.cpp 中
+// Note: These variables are defined in main.cpp
 extern volatile float target_pitch_vel;
 extern volatile float target_yaw_vel;
 extern volatile uint32_t raw_rx_byte_count;
@@ -31,7 +31,7 @@ void UART_Parser::init(uart_inst_t* uart, uint tx_pin, uint rx_pin, uint baud) {
 
     int UART_IRQ = (uart == uart0) ? UART0_IRQ : UART1_IRQ;
     irq_set_exclusive_handler(UART_IRQ, on_uart_rx_isr);
-    irq_set_priority(UART_IRQ, 0); // 确保通讯最高优先级
+    irq_set_priority(UART_IRQ, 0); 
     irq_set_enabled(UART_IRQ, true);
     uart_set_irq_enables(uart, true, false);
 
