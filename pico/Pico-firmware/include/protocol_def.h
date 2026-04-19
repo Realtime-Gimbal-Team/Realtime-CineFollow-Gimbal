@@ -8,7 +8,7 @@ struct FrameHeader {
     uint8_t head1 = 0x55;
     uint8_t head2 = 0xAA;
     uint8_t cmd_id = 0x01;
-    uint8_t data_len = 0x08; // Two floats, totaling 8 bytes
+    uint8_t data_len = 0x08; 
 };
 
 // 🌟 Modified: the semantics have been changed from angle to velocity
