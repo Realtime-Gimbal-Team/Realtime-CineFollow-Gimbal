@@ -17,11 +17,10 @@ list(FILTER SIMPLEFOC_SOURCES EXCLUDE REGEX "Stepper")
 list(FILTER SIMPLEFOC_SOURCES EXCLUDE REGEX "BLDCDriver6PWM")
 
 # 3. 声明执行文件及业务代码 (已剔除废弃的传感器文件)
-add_executable(pico_foc 
-    src/main.cpp 
-    src/Motor.cpp 
-    src/PicoDriver3PWM.cpp
+add_executable(pico_foc
+    src/main.cpp
     src/UART_Parser.cpp
+    src/PicoDriver3PWM.cpp  # 🌟 救命的硬件底层实现，必须加上！
 )
 
 # 将核心算法绑定到执行文件
