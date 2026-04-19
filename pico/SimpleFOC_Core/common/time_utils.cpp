@@ -1,31 +1,19 @@
 #include "time_utils.h"
+#include "pico/stdlib.h" // 🌟 必须显式引入 Pico 原生 SDK 库
 
-// function buffering delay() 
-// arduino uno function doesn't work well with interrupts
-void _delay(unsigned long ms){
-#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__) || defined(__AVR_ATmega328PB__)  || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega32U4__)
-  // if arduino uno and other atmega328p chips
-  // use while instad of delay, 
-  // due to wrong measurement based on changed timer0
-  unsigned long t = _micros() + ms*1000;
-  while( _micros() < t ){}; 
-#else
-  // regular micros
-  delay(ms);
-#endif
+// ---------------------------------------------------------
+// 强行接管延时函数，彻底抛弃 Arduino 的 delay()
+// ---------------------------------------------------------
+void _delay(unsigned long ms) {
+    // 直接调用 Pico SDK 原生的非阻塞毫秒延时
+    sleep_ms(ms);
 }
 
-
-// function buffering _micros() 
-// arduino function doesn't work well with interrupts
-unsigned long _micros(){
-#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__) || defined(__AVR_ATmega328PB__)  || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega32U4__)
-// if arduino uno and other atmega328p chips
-    //return the value based on the prescaler
-    if((TCCR0B & 0b00000111) == 0x01) return (micros()/32);
-    else return (micros());
-#else
-  // regular micros
-  return micros();
-#endif
+// ---------------------------------------------------------
+// 强行接管时间戳函数，彻底消灭时间冻结！
+// ---------------------------------------------------------
+unsigned long _micros() {
+    // 暴力读取 RP2350 底层的 32位 硬件定时器
+    // 它的返回值类型 uint32_t 与 unsigned long 完美匹配，绝对精准
+    return time_us_32();
 }

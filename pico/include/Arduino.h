@@ -25,12 +25,7 @@ inline float fabsf(float x) { return ::fabsf(x); }
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 #endif
 
-#ifndef _PI
-#define _PI 3.14159265358979323846f
-#endif
-#ifndef _2PI
-#define _2PI 6.28318530717958647692f
-#endif
+// 🚨 绝对禁止在这里定义 _PI, _2PI 和 NOT_SET！交还给 SimpleFOC 源码管理！
 
 #define isDigit(c) isdigit((unsigned char)(c))
 
@@ -45,7 +40,6 @@ inline uint32_t millis() { return to_ms_since_boot(get_absolute_time()); }
 // ==========================================
 // 3. GPIO 与 中断黑洞 (屏蔽无用驱动报错)
 // ==========================================
-#define NOT_SET -1
 #define INPUT 0
 #define OUTPUT 1
 #define INPUT_PULLUP 2
@@ -72,7 +66,7 @@ inline void interrupts() {}
 inline void noInterrupts() {}
 
 // ==========================================
-// 4. SPI & I2C 硬件黑洞 (屏蔽磁编码器报错)
+// 4. SPI & I2C 硬件黑洞 (屏蔽磁编码器内部报错)
 // ==========================================
 #define SPI_MODE0 0x00
 #define SPI_MODE1 0x01
