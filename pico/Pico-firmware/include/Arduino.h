@@ -1,5 +1,5 @@
 #pragma once
-
+ 
 // C/C++ Standard library supplement
 #include <stdint.h>
 #include <math.h>
