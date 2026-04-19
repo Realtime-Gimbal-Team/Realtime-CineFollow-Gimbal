@@ -12,9 +12,9 @@
 // Pico SDK low-level layer
 #include "pico/stdlib.h"
 
-// ==========================================
+
 // 1. Math library and constant mapping
-// ==========================================
+
 using std::min;
 using std::max;
 using std::abs;
@@ -29,17 +29,17 @@ inline float fabsf(float x) { return ::fabsf(x); }
 
 #define isDigit(c) isdigit((unsigned char)(c))
 
-// ==========================================
+
 // 2. Time function mapping
-// ==========================================
+
 inline void delay(uint32_t ms) { sleep_ms(ms); }
 inline void delayMicroseconds(uint32_t us) { sleep_us(us); }
 inline uint32_t micros() { return time_us_32(); }
 inline uint32_t millis() { return to_ms_since_boot(get_absolute_time()); }
 
-// ==========================================
+
 // 3. GPIO and interrupt black hole (suppress useless driver errors)
-// ==========================================
+
 #define INPUT 0
 #define OUTPUT 1
 #define INPUT_PULLUP 2
@@ -65,9 +65,9 @@ inline void attachInterrupt(int pin, void (*userFunc)(), int mode) {}
 inline void interrupts() {}
 inline void noInterrupts() {}
 
-// ==========================================
+
 // 4. SPI & I2C hardware black hole (suppress internal magnetic encoder errors)
-// ==========================================
+
 #define SPI_MODE0 0x00
 #define SPI_MODE1 0x01
 #define MSBFIRST 1
@@ -101,9 +101,9 @@ public:
 };
 extern TwoWire Wire;
 
-// ==========================================
+
 // 5.  Completely remove Arduino Print/Stream dependencies
-// ==========================================
+
 class __FlashStringHelper;
 #define F(string_literal) (reinterpret_cast<const __FlashStringHelper *>(string_literal))
 
