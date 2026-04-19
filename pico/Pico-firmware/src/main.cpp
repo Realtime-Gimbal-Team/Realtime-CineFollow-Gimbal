@@ -5,7 +5,7 @@
 #include <math.h>
 #include "../include/UART_Parser.h"
 
-// ================= 引脚与硬件配置 =================
+//Pin and hardware configuration
 #define PITCH_IN1 2
 #define PITCH_IN2 4
 #define PITCH_IN3 6
@@ -16,7 +16,7 @@
 #define YAW_IN3   12
 #define YAW_EN    15 
 
-// ================= 动力物理参数 =================
+// Physical motion parameters
 const float POLE_PAIRS = 11.0f;
 const float VOLTAGE_SUPPLY = 12.0f;
 const float PITCH_VOL_LIMIT = 4.5f; 
@@ -27,19 +27,19 @@ volatile float target_yaw_vel   = 0.0f;
 volatile float current_pitch_angle = 0.0f; 
 volatile float current_yaw_angle = 0.0f;  
 
-// 诊断变量
+// Diagnostic variables
 volatile uint32_t raw_rx_byte_count = 0;
 volatile uint32_t err_cksm = 0;
 volatile uint32_t err_tail = 0;
 
-// 🌟 物理平滑与软启动变量
+// Physical smoothing and soft-start variables
 volatile bool is_soft_starting = true;
 volatile float current_pitch_vol = 0.0f; 
 volatile float current_yaw_vol = 0.0f;
 volatile float smooth_pitch_vel = 0.0f;  
 volatile float smooth_yaw_vel = 0.0f;
 
-// 极速正弦查找表
+// Ultra-fast sine lookup table
 static float sin_lut[256];
 void init_sin_lut() {
     for (int i = 0; i < 256; i++) {
@@ -58,15 +58,14 @@ BLDCDriver3PWM pitch_driver(PITCH_IN1, PITCH_IN2, PITCH_IN3, PITCH_EN);
 BLDCDriver3PWM yaw_driver(YAW_IN1, YAW_IN2, YAW_IN3, YAW_EN);
 UART_Parser uart_parser;
 
-// ================= 500Hz 硬实时控制中断 =================
+// 500 Hz hard real-time control interrupt
 bool spwm_timer_callback(struct repeating_timer *t) {
     const float dt = 0.002f; 
     const float U_center = VOLTAGE_SUPPLY / 2.0f;
 
-    // 🌟 1. 真正的软对齐 (Soft-Start Alignment)
-    // 即使速度为0，电压也在缓步爬升，将转子像吸铁石一样温柔地吸到 0 度位置
+    // 1. True soft alignment
     if (is_soft_starting) {
-        current_pitch_vol += 2.0f * dt; // 爬升率：2V/s
+        current_pitch_vol += 2.0f * dt; // Rise rate：2V/s
         current_yaw_vol += 2.0f * dt;
         if (current_pitch_vol >= PITCH_VOL_LIMIT) current_pitch_vol = PITCH_VOL_LIMIT;
         if (current_yaw_vol >= YAW_VOL_LIMIT) current_yaw_vol = YAW_VOL_LIMIT;
@@ -75,7 +74,7 @@ bool spwm_timer_callback(struct repeating_timer *t) {
         }
     }
 
-    // 🌟 2. 梯形加速度限制器
+    //  2. Trapezoidal acceleration limiter
     const float max_accel = 6.0f; 
     const float max_delta_v = max_accel * dt; 
 
@@ -87,10 +86,10 @@ bool spwm_timer_callback(struct repeating_timer *t) {
     else if (target_yaw_vel < smooth_yaw_vel - max_delta_v) smooth_yaw_vel -= max_delta_v;
     else smooth_yaw_vel = target_yaw_vel;
 
-    // 🌟 3. 全时全功率发波 (坚决不撒手！)
+    //  3. Continuous full-power signal output
     current_pitch_angle += smooth_pitch_vel * dt;
     float p_elec = current_pitch_angle * POLE_PAIRS;
-    float p_amp = current_pitch_vol; // 即使速度为0，依然保持输出额定电压！
+    float p_amp = current_pitch_vol; 
     
     pitch_driver.setPwm(
         U_center + p_amp * fast_sin(p_elec),
@@ -132,7 +131,7 @@ int main() {
     uart_parser.init(uart0, 0, 1, 115200);
 
     struct repeating_timer timer;
-    // 启动中断后，软启动逻辑立刻开始工作，此时电机将被锁定在当前位置
+ 
     add_repeating_timer_us(-2000, spwm_timer_callback, NULL, &timer);
 
     uint32_t last_print_time = 0;
