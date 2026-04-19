@@ -1,14 +1,14 @@
 #pragma once
 #include <mutex>
 
-// 视觉感知数据
+//Visual perception data
 struct VisionData {
-    float ex = 0.0f; // 像素误差 X
-    float ey = 0.0f; // 像素误差 Y
+    float ex = 0.0f; // Pixel error (X)
+    float ey = 0.0f; // Pixel error (Y)
     bool target_found = false;
 };
 
-// 速度下发指令 (基于 IBVS 开环控制)
+// Velocity command transmission (based on IBVS open-loop control)
 struct VelocityCommand {
     float pitch_vel = 0.0f; // rad/s
     float yaw_vel = 0.0f;   // rad/s
@@ -22,25 +22,24 @@ private:
     std::mutex cmd_mtx;
 
 public:
-    // --- 供 Vision Thread 写入 ---
     void updateVision(float ex, float ey, bool found) {
         std::lock_guard<std::mutex> lock(vision_mtx);
         current_vision = {ex, ey, found};
     }
 
-    // --- 供 Control Thread 读取 ---
+    //--- For the Control Thread to read ---
     VisionData getVision() {
         std::lock_guard<std::mutex> lock(vision_mtx);
         return current_vision;
     }
 
-    // --- 供 Control Thread 写入 ---
+    //--- For the Control Thread to write ---
     void updateCommand(float p_vel, float y_vel) {
         std::lock_guard<std::mutex> lock(cmd_mtx);
         current_cmd = {p_vel, y_vel};
     }
 
-    // --- 供 UART Thread 读取 ---
+    // --- For the UART Thread to read ---
     VelocityCommand getCommand() {
         std::lock_guard<std::mutex> lock(cmd_mtx);
         return current_cmd;
