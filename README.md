@@ -106,6 +106,6 @@ Unit testing (Google Test) and memory analysis (Valgrind) are applied to ensure 
 ## **🔗 Relevant Links**
 
 [**Documentation 📝**]()  
-[**GitHub Repository 🔗**]()  
+[**GitHub Repository 🔗**](https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal)  
 [**Demo Video 🎥**]()  
 [**Social Media Promotion 📢**](https://www.tiktok.com/@embedded629?_r=1&_t=ZN-95cXb2197FG)
