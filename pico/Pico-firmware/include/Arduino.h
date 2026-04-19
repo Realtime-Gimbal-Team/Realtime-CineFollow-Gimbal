@@ -1,6 +1,6 @@
 #pragma once
 
-// C/C++ 标准库填补
+// C/C++ Standard library supplement
 #include <stdint.h>
 #include <math.h>
 #include <string.h>
@@ -9,11 +9,11 @@
 #include <ctype.h>
 #include <algorithm>
 
-// Pico SDK 底层
+// Pico SDK low-level layer
 #include "pico/stdlib.h"
 
 // ==========================================
-// 1. 数学库与常量映射 
+// 1. Math library and constant mapping
 // ==========================================
 using std::min;
 using std::max;
@@ -25,12 +25,12 @@ inline float fabsf(float x) { return ::fabsf(x); }
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 #endif
 
-// 🚨 绝对禁止在这里定义 _PI, _2PI 和 NOT_SET！交还给 SimpleFOC 源码管理！
+// 🚨 Never define _PI, _2PI, or NOT_SET here — leave them to be managed by the SimpleFOC source code!
 
 #define isDigit(c) isdigit((unsigned char)(c))
 
 // ==========================================
-// 2. 时间函数映射 
+// 2. Time function mapping
 // ==========================================
 inline void delay(uint32_t ms) { sleep_ms(ms); }
 inline void delayMicroseconds(uint32_t us) { sleep_us(us); }
@@ -38,7 +38,7 @@ inline uint32_t micros() { return time_us_32(); }
 inline uint32_t millis() { return to_ms_since_boot(get_absolute_time()); }
 
 // ==========================================
-// 3. GPIO 与 中断黑洞 (屏蔽无用驱动报错)
+// 3. GPIO and interrupt black hole (suppress useless driver errors)
 // ==========================================
 #define INPUT 0
 #define OUTPUT 1
@@ -66,7 +66,7 @@ inline void interrupts() {}
 inline void noInterrupts() {}
 
 // ==========================================
-// 4. SPI & I2C 硬件黑洞 (屏蔽磁编码器内部报错)
+// 4. SPI & I2C hardware black hole (suppress internal magnetic encoder errors)
 // ==========================================
 #define SPI_MODE0 0x00
 #define SPI_MODE1 0x01
@@ -102,7 +102,7 @@ public:
 extern TwoWire Wire;
 
 // ==========================================
-// 5. 彻底屏蔽 Arduino 的 Print/Stream 依赖 
+// 5.  Completely remove Arduino Print/Stream dependencies
 // ==========================================
 class __FlashStringHelper;
 #define F(string_literal) (reinterpret_cast<const __FlashStringHelper *>(string_literal))
