@@ -1,32 +1,42 @@
 #include "../include/Motor.h"
-#include <stdio.h>
 
-Motor::Motor(int in1, int in2, int in3, int en) {
-    pin_in1 = in1; pin_in2 = in2; pin_in3 = in3; pin_en = en;
-    current_angle = 0.0f; target_angle = 0.0f;
+// 构造函数
+Motor::Motor(int phA, int phB, int phC, int en) {
+    driver = new BLDCDriver3PWM(phA, phB, phC, en);
+    // GM3506 云台电机通常是 11 对极。开环模式下必须指定对极数。
+    motor = new BLDCMotor(11); 
 }
 
 void Motor::init() {
-    printf("[SYSTEM] Motor initialized! Pins: %d,%d,%d, EN:%d\n", pin_in1, pin_in2, pin_in3, pin_en);
+    // 1. 驱动板配置 (假设你用的是 12V 动力电池供电)
+    driver->voltage_power_supply = 12.0f; 
+    driver->init();
+    motor->linkDriver(driver);
+
+    // 2. 核心：开环安全限制（绝不可删！）
+    motor->voltage_limit = 5.0f;   // 限制最大相电压为 3V，防止开环过热烧毁
+    motor->velocity_limit = 20.0f; // 限制最大转速为 20 rad/s
+
+    // 3. 配置为开环速度控制模式
+    motor->controller = MotionControlType::velocity_openloop;
+
+    // 4. 绕过传感器，直接初始化
+    motor->init();
+    
+    // 初始速度设为 0
+    motor->target = 0.0f;
 }
 
-void Motor::setTargetAngle(float angle) {
-    // Safety mechanism: Limit angles to prevent hardware damage
-    if (angle > 45.0f) {
-        target_angle = 45.0f; 
-        printf("[WARN] Angle %.1f too large! Clamped to 45.0 deg\n", angle);
-    } else if (angle < -45.0f) {
-        target_angle = -45.0f;
-        printf("[WARN] Angle %.1f too small! Clamped to -45.0 deg\n", angle);
-    } else {
-        target_angle = angle;
-    }
+void Motor::setTargetVelocity(float target_vel) {
+    motor->target = target_vel;
 }
-
-float Motor::getCurrentAngle() { return current_angle; }
 
 void Motor::loopFOC() {
-    // Software simulation of FOC operation
-    if (current_angle < target_angle) current_angle += 0.5f; 
-    else if (current_angle > target_angle) current_angle -= 0.5f;
+    // 开环模式下 loopFOC 实际上为空，保留以维持架构统一
+    motor->loopFOC();
+}
+
+void Motor::move() {
+    // 开环核心：纯靠微秒级时间戳强行输出三相正弦波
+    motor->move();
 }
