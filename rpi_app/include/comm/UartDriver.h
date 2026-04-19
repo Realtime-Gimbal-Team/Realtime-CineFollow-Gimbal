@@ -4,7 +4,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-// 严格按照 Pico 端协议强制 1 字节对齐
+// Strictly enforce 1-byte alignment according to the Pico-side protocol.
 #pragma pack(push, 1)
 struct ControlPacket {
     uint8_t header1 = 0x55;
@@ -22,7 +22,7 @@ class UartDriver {
 private:
     int serial_fd = -1;
 
-    // 严谨的校验和算法：完美对接 Pico 的要求
+    // A robust checksum algorithm: fully compliant with the Pico requirements
     void fill_checksum(ControlPacket& pkt) {
         uint8_t sum = pkt.cmd_id + pkt.data_len;
         uint8_t* payload_ptr = reinterpret_cast<uint8_t*>(&pkt.pitch_vel);
@@ -38,17 +38,16 @@ public:
     }
 
     bool init(const char* port = "/dev/serial0") {
-        // 阻塞模式 (Blocking I/O)
+        // Blocking mode (Blocking I/O)
         serial_fd = open(port, O_RDWR | O_NOCTTY);
         if (serial_fd == -1) return false;
 
         struct termios options;
         tcgetattr(serial_fd, &options);
-        cfmakeraw(&options); // 纯正二进制流，防止 Linux 内核拦截
+        cfmakeraw(&options); // Pure binary stream to prevent interception by the Linux kernel
         cfsetispeed(&options, B115200);
         cfsetospeed(&options, B115200);
         
-        // 绝对正确的写法：先清空 CSIZE 掩码，再打上 CS8 烙印！
         options.c_cflag &= ~(PARENB | CSTOPB | CSIZE | CRTSCTS); 
         options.c_cflag |= (CLOCAL | CREAD | CS8);
         
@@ -71,7 +70,7 @@ public:
 
         int bytes_written = write(serial_fd, &pkt, sizeof(ControlPacket));
         if (bytes_written == sizeof(ControlPacket)) {
-            tcdrain(serial_fd); // 强制刷入物理引脚
+            tcdrain(serial_fd); // Force output to the physical pins
         } else {
             std::cerr << "[UART Warning] TX Incomplete or Linux Buffer Error." << std::endl;
         }
