@@ -3,15 +3,15 @@
 
 #pragma pack(push, 1) 
 
-// --- 接收：树莓派 -> Pico ---
+// --- Receive: Raspberry Pi -> Pico ---
 struct FrameHeader {
     uint8_t head1 = 0x55;
     uint8_t head2 = 0xAA;
     uint8_t cmd_id = 0x01;
-    uint8_t data_len = 0x08; // 两个 float，共 8 字节
+    uint8_t data_len = 0x08; // Two floats, totaling 8 bytes
 };
 
-// 🌟 修改：语义从角度转为速度
+// 🌟 Modified: the semantics have been changed from angle to velocity
 struct PayloadSetVelocity {
     float pitch_vel; 
     float yaw_vel;   
@@ -24,7 +24,7 @@ struct FrameSetVelocity {
     uint8_t tail = 0x0D;
 };
 
-// --- 发送：Pico -> 树莓派 (状态反馈) ---
+// --- Send: Pico -> Raspberry Pi (status feedback) ---
 struct FrameHeaderTx {
     uint8_t head1 = 0xAA;
     uint8_t head2 = 0x55; 
@@ -33,7 +33,7 @@ struct FrameHeaderTx {
 };
 
 struct PayloadFeedback {
-    float pitch_current_vel; // 既然没编码器，反馈速度比反馈虚假的角度更有意义
+    float pitch_current_vel; // Since there is no encoder, feeding back velocity is more meaningful than feeding back a fake angle
     float yaw_current_vel;
 };
 
