@@ -1,0 +1,380 @@
+#include "libcam2opencv.h"
+#include <unistd.h>
+#include <stdexcept>
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-reference"
+#endif
+
+void Libcam2OpenCV::requestComplete(libcamera::Request *request)
+{
+    std::lock_guard<std::mutex> guard(shutdown_mutex);
+    if (nullptr == request)
+        return;
+    if (request->status() == libcamera::Request::RequestCancelled)
+        return;
+
+    /*
+     * When a request has completed, it is populated with a metadata control
+     * list that allows an application to determine various properties of
+     * the completed request. This can include the timestamp of the Sensor
+     * capture, or its gain and exposure values, or properties from the IPA
+     * such as the state of the 3A algorithms.
+     *
+     * ControlValue types have a toString, so to examine each request, print
+     * all the metadata for inspection. A custom application can parse each
+     * of these items and process them according to its needs.
+     */
+    const libcamera::ControlList &requestMetadata = request->metadata();
+
+    /*
+     * Each buffer has its own FrameMetadata to describe its state, or the
+     * usage of each buffer. While in our simple capture we only provide one
+     * buffer per request, a request can have a buffer for each stream that
+     * is established when configuring the camera.
+     *
+     * This allows a viewfinder and a still image to be processed at the
+     * same time, or to allow obtaining the RAW capture buffer from the
+     * sensor along with the image as processed by the ISP.
+     */
+    const libcamera::Request::BufferMap &buffers = request->buffers();
+    for (auto bufferPair : buffers)
+    {
+        libcamera::FrameBuffer *buffer = bufferPair.second;
+        auto mem = framebuffer2memory[buffer];
+        auto frame = formatConverter.convert(mem);
+        if (onFrame)
+        {
+            onFrame(frame, requestMetadata);
+        }
+    }
+
+    /* Re-queue the Request to the camera. */
+    request->reuse(libcamera::Request::ReuseBuffers);
+    camera->queueRequest(request);
+}
+
+void Libcam2OpenCV::start(libcamera::CameraManager &cm,
+                          Libcam2OpenCVSettings settings)
+{
+    /*
+     * List the names of the Cameras registered in the
+     * system.
+     */
+    std::cerr << "Cams:" << std::endl;
+    for (auto const &camera : cm.cameras())
+        std::cerr << " - " << camera.get()->id() << std::endl;
+
+    /*
+     * --------------------------------------------------------------------
+     * Camera
+     *
+     * Camera are entities created by pipeline handlers, inspecting the
+     * entities registered in the system and reported to applications
+     * by the CameraManager.
+     *
+     * In general terms, a Camera corresponds to a single image source
+     * available in the system, such as an image sensor.
+     *
+     * Application lock usage of Camera by 'acquiring' them.
+     * Once done with it, application shall similarly 'release' the Camera.
+     */
+    if (cm.cameras().empty())
+    {
+        std::cerr << "No cameras were identified on the system."
+                  << std::endl;
+        return;
+    }
+
+    if (settings.cameraIndex >= cm.cameras().size())
+    {
+        std::cerr << "Camera index out of range."
+                  << std::endl;
+        return;
+    }
+
+    std::string cameraId = cm.cameras()[settings.cameraIndex]->id();
+    camera = cm.get(cameraId);
+    camera->acquire();
+
+    /*
+     * Stream
+     *
+     * Each Camera supports a variable number of Stream. A Stream is
+     * produced by processing data produced by an image source, usually
+     * by an ISP.
+     *
+     *   +-------------------------------------------------------+
+     *   | Camera                                                |
+     *   |                +-----------+                          |
+     *   | +--------+     |           |------> [  Main output  ] |
+     *   | | Image  |     |           |                          |
+     *   | |        |---->|    ISP    |------> [   Viewfinder  ] |
+     *   | | Source |     |           |                          |
+     *   | +--------+     |           |------> [ Still Capture ] |
+     *   |                +-----------+                          |
+     *   +-------------------------------------------------------+
+     *
+     * The number and capabilities of the Stream in a Camera are
+     * a platform dependent property, and it's the pipeline handler
+     * implementation that has the responsibility of correctly
+     * report them.
+     */
+
+    /*
+     * --------------------------------------------------------------------
+     * Camera Configuration.
+     *
+     * Camera configuration is tricky! It boils down to assign resources
+     * of the system (such as DMA engines, scalers, format converters) to
+     * the different image streams an application has requested.
+     *
+     * Depending on the system characteristics, some combinations of
+     * sizes, formats and stream usages might or might not be possible.
+     *
+     * A Camera produces a CameraConfigration based on a set of intended
+     * roles for each Stream the application requires.
+     */
+    config = camera->generateConfiguration({libcamera::StreamRole::Viewfinder});
+
+    /*
+     * The CameraConfiguration contains a StreamConfiguration instance
+     * for each StreamRole requested by the application, provided
+     * the Camera can support all of them.
+     *
+     * Each StreamConfiguration has default size and format, assigned
+     * by the Camera depending on the Role the application has requested.
+     */
+    libcamera::StreamConfiguration &streamConfig = config->at(0);
+
+    /*
+     * Each StreamConfiguration parameter which is part of a
+     * CameraConfiguration can be independently modified by the
+     * application.
+     *
+     * In order to validate the modified parameter, the CameraConfiguration
+     * should be validated -before- the CameraConfiguration gets applied
+     * to the Camera.
+     *
+     * The CameraConfiguration validation process adjusts each
+     * StreamConfiguration to a valid value.
+     */
+
+    /*
+     * The Camera configuration procedure fails with invalid parameters.
+     */
+    if ((settings.width > 0) && (settings.height > 0))
+    {
+        streamConfig.size.width = settings.width;
+        streamConfig.size.height = settings.height;
+        int ret = camera->configure(config.get());
+        if (ret)
+        {
+            throw std::runtime_error("Could not config camera.");
+        }
+    }
+
+    // Native format for the format converter won't need any conversion.
+    streamConfig.pixelFormat = FormatConverter::nativeInputFormat;
+
+    /*
+     * Validating a CameraConfiguration -before- applying it will adjust it
+     * to a valid configuration which is as close as possible to the one
+     * requested.
+     */
+    config->validate();
+
+    std::cerr << "Stream configuration adjusted to: "
+              << streamConfig.toString() << std::endl;
+
+    /*
+     * Once we have a validated configuration, we can apply it to the
+     * Camera.
+     */
+    camera->configure(config.get());
+
+    /*
+     * Allocate memory for every framebuffer. Every stream can have multiple
+     * frame buffers, for example for double buffering. How many are needed
+     * is decided by libcamera. We let libcamera allocate as many as it needs.
+     * What complicates things is that framebuffers are distingished by their
+     * mmap file descriptors. We need to do the mapping from the file descriptors
+     * to the physical addresses ourselves.
+     */
+    allocator = std::make_unique<libcamera::FrameBufferAllocator>(camera);
+    for (libcamera::StreamConfiguration &config : *config)
+    {
+        libcamera::Stream *stream = config.stream();
+
+        int ret = allocator->allocate(stream);
+        if (ret < 0)
+        {
+            throw std::runtime_error("Failed to allocate capture buffers.");
+        }
+
+        for (const std::unique_ptr<libcamera::FrameBuffer> &buffer : allocator->buffers(config.stream()))
+        {
+            // "Single plane" buffers appear as multi-plane here, but we can spot them because then
+            // planes all share the same fd. We accumulate them so as to mmap the buffer only once.
+            size_t buffer_size = 0;
+            for (unsigned i = 0; i < buffer->planes().size(); i++)
+            {
+                const libcamera::FrameBuffer::Plane &plane = buffer->planes()[i];
+                buffer_size += plane.length;
+                if (i == buffer->planes().size() - 1 || plane.fd.get() != buffer->planes()[i + 1].fd.get())
+                {
+                    void *memory = mmap(NULL, buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, plane.fd.get(), 0);
+                    framebuffer2memory[buffer.get()].push_back(libcamera::Span<uint8_t>(static_cast<uint8_t *>(memory),
+                                                                                        buffer_size));
+                    buffer_size = 0;
+                }
+            }
+        }
+    }
+
+    /*
+     * --------------------------------------------------------------------
+     * Frame Capture
+     *
+     * libcamera frames capture model is based on the 'Request' concept.
+     * For each frame a Request has to be queued to the Camera.
+     *
+     * A Request refers to (at least one) Stream for which a Buffer that
+     * will be filled with image data shall be added to the Request.
+     *
+     * A Request is associated with a list of Controls, which are tunable
+     * parameters (similar to v4l2_controls) that have to be applied to
+     * the image.
+     *
+     * Once a request completes, all its buffers will contain image data
+     * that applications can access and for each of them a list of metadata
+     * properties that reports the capture parameters applied to the image.
+     */
+    stream = streamConfig.stream();
+    const std::vector<std::unique_ptr<libcamera::FrameBuffer>> &buffers = allocator->buffers(stream);
+    for (unsigned int i = 0; i < buffers.size(); ++i)
+    {
+        std::unique_ptr<libcamera::Request> request = camera->createRequest();
+        if (!request)
+        {
+            std::cerr << "Can't create request" << std::endl;
+            return;
+        }
+
+        const std::unique_ptr<libcamera::FrameBuffer> &buffer = buffers[i];
+        int ret = request->addBuffer(stream, buffer.get());
+        if (ret < 0)
+        {
+            std::cerr << "Can't set buffer for request"
+                      << std::endl;
+            return;
+        }
+
+        requests.push_back(std::move(request));
+    }
+
+    /*
+     * --------------------------------------------------------------------
+     * Signal&Slots
+     *
+     * libcamera uses a Signal&Slot based system to connect events to
+     * callback operations meant to handle them, inspired by the QT graphic
+     * toolkit.
+     *
+     * Signals are events 'emitted' by a class instance.
+     * Slots are callbacks that can be 'connected' to a Signal.
+     *
+     * A Camera exposes Signals, to report the completion of a Request and
+     * the completion of a Buffer part of a Request to support partial
+     * Request completions.
+     *
+     * In order to receive the notification for request completions,
+     * applications shall connecte a Slot to the Camera 'requestCompleted'
+     * Signal before the camera is started.
+     */
+    camera->requestCompleted.connect(this, &Libcam2OpenCV::requestComplete);
+
+    if (settings.framerate > 0)
+    {
+        const int64_t frame_time = 1000000 / settings.framerate; // in us
+        const auto frameRateRange = libcamera::Span<const int64_t, 2>({frame_time, frame_time});
+        controls.set(libcamera::controls::FrameDurationLimits, frameRateRange);
+    }
+
+    if (settings.lensPosition >= 0)
+    {
+        controls.set(libcamera::controls::LensPosition, settings.lensPosition);
+    }
+
+    if (settings.exposureTime > 0)
+    {
+        controls.set(libcamera::controls::ExposureTime, settings.exposureTime); // in µs
+    }
+
+    if (settings.exposureValue != 0.0f)
+    {
+        controls.set(libcamera::controls::ExposureValue, settings.exposureValue);
+    }
+
+    if (settings.saturation != 1.0f)
+    { // Check if saturation is different from the default
+        controls.set(libcamera::controls::Saturation, settings.saturation);
+    }
+
+    controls.set(libcamera::controls::Brightness, settings.brightness);
+    controls.set(libcamera::controls::Contrast, settings.contrast);
+
+    int vw = streamConfig.size.width;
+    int vh = streamConfig.size.height;
+    int vstr = streamConfig.stride;
+    formatConverter.start(streamConfig.pixelFormat, vw, vh, vstr);
+
+    /*
+     * --------------------------------------------------------------------
+     * Start Capture
+     *
+     * In order to capture frames the Camera has to be started and
+     * Request queued to it. Enough Request to fill the Camera pipeline
+     * depth have to be queued before the Camera start delivering frames.
+     *
+     * For each delivered frame, the Slot connected to the
+     * Camera::requestCompleted Signal is called.
+     */
+    camera->start(&controls);
+    for (std::unique_ptr<libcamera::Request> &request : requests)
+        camera->queueRequest(request.get());
+}
+
+void Libcam2OpenCV::stop()
+{
+    /*
+     * --------------------------------------------------------------------
+     * Clean Up
+     *
+     * Stop the Camera, release resources and stop the CameraManager.
+     * libcamera has now released all resources it owned.
+     */
+    if (camera)
+    {
+        // Disconnecting the completion handler so that it won't trigger
+        // a new frame request.
+        camera->requestCompleted.disconnect(this);
+        // We need to wait here till the final completion handler has finished
+        // to prevent a segfault.
+        std::lock_guard<std::mutex> guard(shutdown_mutex);
+        // Now we can safely stop the camera knowing that no completion handler
+        // is active any more.
+        camera->stop();
+        if (allocator)
+            allocator->free(stream);
+        allocator.reset();
+        camera->release();
+        camera.reset();
+    }
+    formatConverter.stop();
+}
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif

@@ -21,3 +21,6 @@ models/*.param
 
 # System files
 .DS_Store
+
+CMakeCache.txt
+CMakeFiles/
