@@ -1,16 +1,24 @@
 # Realtime-CineFollow-Gimbal
-CineFollow-Gimbal is a real-time, shooting-oriented pan–tilt gimbal designed as an intelligent camera accessory. It uses vision-based feedback to smoothly keep a subject centred in frame. The current prototype supports smartphone payloads, with future compatibility planned for mirrorless and cinema cameras via standard 1/4-inch mounts.
-<h1 align="center">IRIS</h1>
 
-<p align="center">
-  Real-time Intelligent Cine Follow Gimbal
-</p>
-
-<p align="center">
+<div align="center">
   <img src="https://raw.githubusercontent.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/main/iris.png" width="800"/>
-</p>
+  <h1>👁️ IRIS</h1>
+  <p><b>Real-time Intelligent Cine-Follow Gimbal</b></p>
+  <p><i>The autonomous, real-time camera operator for solo content creators.</i></p>
+</div>
+
+---
 
 ## **📌 Project Overview**
+IRIS is a real-time, shooting-oriented pan-tilt gimbal designed as an intelligent camera accessory. It transcends a simple motorized mount by operating as a spatially aware, automated cinematography system. 
+
+Powered by Edge-AI and industrial-grade control algorithms, IRIS delivers:
+- **Millisecond-Level Response:** Utilizes the Raspberry Pi 5 for ultra-low latency target acquisition and locking.
+- **Cinematic Smoothness:** Replaces stiff mechanical movements with our custom kinetic smoothing algorithm, mimicking the fluid motion of a professional camera jib.
+- **Dual-Axis Synergy:** Coordinated Yaw and Pitch actuation fully covers dynamic subjects, completely freeing the creator's hands.
+
+The current prototype supports smartphone payloads, with future compatibility planned for mirrorless and cinema cameras via standard 1/4-inch mounts.
+
 ## 📸 Prototype
 
 <p align="center">
@@ -18,36 +26,20 @@ CineFollow-Gimbal is a real-time, shooting-oriented pan–tilt gimbal designed a
 </p>
 
 <p align="center">
-  Physical prototype of the IRIS real-time cine-follow gimbal system.
+  <i>Physical prototype of the IRIS real-time cine-follow gimbal system.</i>
 </p>
-Real-time Requirements : This project addresses a solid real-time requirement where any delay in image processing or PID calculation would result in jerky motion or tracking loss. 
 
-Multithreading: Separated threads for image acquisition, CV processing, and PID control using std::thread. 
-
-Event-Driven Architecture: Utilizing Callbacks and Lambdas to handle frame-ready events, minimizing polling latency. 
-
-Low Latency: Target loop frequency is 30-60Hz to match the camera frame rate. 
-
-Key Features |  Modular Design: Universal 1/4" mount for cameras/smartphones.
-
-Robust Tracking: OpenCV-based object detection with predictive motion filtering. 
-
-Smooth Motion: Advanced PID control for professional-grade stabilization. 
-
-Software Architecture | The project is built with Modern C++ (C++17), emphasizing encapsulation and high reliability.
-
-GimbalController: Encapsulates PID logic and motor drive states. 
-
-VisionProcessor: Handles frame buffers and object detection using STL containers. 
-
-ThreadManager: Manages real-time thread priorities and safe data exchange.
+### ⚡ Core Real-Time Requirements & Architecture
+- **Strict Real-Time Execution:** This project addresses a solid real-time requirement where any delay in image processing or PID calculation would result in jerky motion or tracking loss. We achieved a **deterministic 100Hz control loop** utilizing `std::this_thread::sleep_until`, completely avoiding blocking polling statements.
+- **Event-Driven Architecture:** Utilizes Callbacks and Lambdas to handle frame-ready events (`camera.startCapture`), significantly minimizing polling latency.
+- **Multithreading & Memory Safety:** Separated threads for vision acquisition, CV processing, and PID control using `std::thread`. Shared states are strictly protected by `std::mutex`. The system relies entirely on modern C++ (C++17) RAII for failsafe memory management with zero explicit `new/delete` operations.
 
 ## 👉 Division of responsibilities among team members
-- **Yining Liu(3153782Y)**:Led system decision-making, visual algorithm development, and attitude sensing; implemented YOLO + ByteTrack deployment, IMU sensor fusion, gimbal control logic, and latency-oriented performance evaluation.
-- **Zongwei Xie (3085969X)**:Developed the low-level motor control and hardware execution layer; implemented the motor driver based on SimpleFOC, tuned PID control loops, and handled real-time UART communication and protocol parsing.
+- **Yining Liu (3153782Y)**: Led system decision-making, visual algorithm development, and core C++ architecture; implemented YOLO deployment, Greedy Distance Matching tracking, Symmetric Soft Ramp control logic, Mutex Threading Architecture, and latency-oriented performance evaluation.
+- **Zongwei Xie (3085969X)**: Developed the low-level motor control and hardware execution layer; implemented the motor driver based on SimpleFOC, tuned PID control loops, and handled real-time UART communication and protocol parsing.
 - **Yifei Wang (3147822W)**: Designed and implemented user interaction and physical data visualization; developed OLED display functions, button-based mode switching, and event-driven interaction logic using interrupts or callbacks.
 - **Yandong Fan (3159430F)**: Took charge of reliability engineering and latency assessment; built quantitative timing tools, supported unit testing for core modules, and carried out memory and fault management checks.
-- **Chenxu Li (3091645L)**:Managed project coordination, revision control, and external promotion; defined Git branching and issue-tracking workflows, prepared reproducible project documentation, and supported public outreach on social media.
+- **Chenxu Li (3091645L)**: Managed project coordination, revision control, and external promotion; defined Git branching and issue-tracking workflows, prepared reproducible project documentation, and supported public outreach on social media.
 
 ## **🚀 Development Progress**
 
@@ -64,29 +56,30 @@ ThreadManager: Manages real-time thread priorities and safe data exchange.
 📢 Project promotion (social media & Hackaday) ·································································✅[Completed]
 
 ## **🎯 Key Features**
-✅ Real-time Object Tracking (YOLO + ByteTrack)
-A deep learning–based vision pipeline is deployed on Raspberry Pi to perform real-time object detection and identity tracking, providing stable target coordinates for control.
+✅ **Real-time Object Tracking (YOLOv8 + Greedy Distance Matching)**
+A deep learning–based vision pipeline is deployed on Raspberry Pi via NCNN. We utilized an optimized Greedy Distance Matching algorithm to provide stable target coordinates and ID persistence without the phase lag introduced by traditional filters.
 
-✅ Gimbal Attitude Estimation (IMU Sensor Fusion)
+✅ **Gimbal Attitude Estimation (IMU Sensor Fusion)**
 IMU data is fused to estimate the gimbal’s orientation (Yaw/Pitch) with smooth and stable outputs, improving overall system accuracy and robustness.
 
-✅ Smooth Motion Control (Gimbal Logic)
-Camera motion principles are translated into control algorithms, incorporating S-curve smoothing, deadzone filtering, and target motion prediction for natural and cinematic movement.
+✅ **Smooth Motion Control (Symmetric Soft Ramp & Deadzone)**
+Camera motion principles are translated into control algorithms, incorporating Symmetric Linear Soft Ramps and Continuous Soft Deadzone Compensation to eliminate low-speed cogging torque and provide natural, cinematic movement.
 
-✅ High-Precision Motor Control (FOC + PID)
+✅ **High-Precision Motor Control (FOC + PID)**
 Brushless motors are driven using the SimpleFOC framework, with well-tuned position and velocity PID loops to achieve precise and low-vibration actuation.
 
-✅ Low-Latency Communication Architecture
+✅ **Low-Latency Communication Architecture**
 Efficient UART communication combined with interrupt/callback mechanisms ensures fast and reliable transmission between the vision module and motor controller.
 
-✅ OLED-Based Real-time Visualization & Interaction
+✅ **OLED-Based Real-time Visualization & Interaction**
 A 0.96" OLED display provides real-time feedback including orientation angles, system runtime, and detection confidence, along with button-based mode switching.
 
-✅ Quantitative Latency Assessment
+✅ **Quantitative Latency Assessment**
 A dedicated C++ tool measures the full pipeline delay (from vision detection to motor response) with microsecond-level precision, ensuring real-time performance.
 
-✅ Robustness & Reliability Engineering
+✅ **Robustness & Reliability Engineering**
 Unit testing (Google Test) and memory analysis (Valgrind) are applied to ensure system stability, safety, and fail-safe operation.
+
 ## **🔧 Hardware Components**
 | Component                        | Specification                   | Quantity | Purpose                                                                 |
 | -------------------------------- | ------------------------------- | -------: | ----------------------------------------------------------------------- |
@@ -108,6 +101,24 @@ Unit testing (Google Test) and memory analysis (Valgrind) are applied to ensure 
 | Phone Clamp                      | Adjustable holder               |        1 | Holds the mobile phone securely on the gimbal platform                  |
 | iPhone 13 mini                   | Smartphone payload              |        1 | Target payload for stabilization and tracking demonstration             |
 | M2 / M2.5 Screws and Nuts        | Fasteners                       | Assorted | Mechanical assembly and structural fixing                               |
+
+## **💻 How to Reproduce (Build Instructions)**
+To ensure maximum reproducibility, follow these steps to build the project on a Raspberry Pi 5 running Linux:
+
+```bash
+# 1. Clone the repository
+git clone [https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal.git](https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal.git)
+cd Realtime-CineFollow-Gimbal
+
+# 2. Create build directory
+mkdir build && cd build
+
+# 3. Compile the project
+cmake ..
+make -j4
+
+# 4. Execute the Real-time Gimbal Node
+./Realtime_CineFollow_Gimbal
 
 ## **💻 Software Architecture**
 
