@@ -13,11 +13,8 @@
     <a href="./docs/Final_Technical_Report.pdf">
       <img src="https://img.shields.io/badge/Report-Technical_Paper-green?style=for-the-badge&logo=read-the-docs" alt="Technical Report">
     </a>
-    <a href="INSERT_YOUTUBE_LINK_HERE">
+    <a href="https://vm.tiktok.com/ZNRq9RjLb/">
       <img src="https://img.shields.io/badge/Demo_Video-Watch_Now-red?style=for-the-badge&logo=youtube" alt="Demo Video">
-    </a>
-    <a href="https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/releases/tag/v1.0.0-Final">
-      <img src="https://img.shields.io/badge/Release-v1.0.0--Final-blue?style=for-the-badge&logo=github" alt="Release">
     </a>
   </p>
 
