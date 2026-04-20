@@ -108,30 +108,25 @@ The Iris Gimbal operates on a high-concurrency, multi-threaded architecture desi
 
 📢 Project promotion  ·························································································································································✅[Completed]
 
-## **🎯 Key Features**
-✅ **Real-time Object Tracking (YOLOv8 + Greedy Distance Matching)**
-A deep learning–based vision pipeline is deployed on Raspberry Pi via NCNN. We utilized an optimized Greedy Distance Matching algorithm to provide stable target coordinates and ID persistence without the phase lag introduced by traditional filters.
+## 🎯 Key Features
 
-✅ **Gimbal Attitude Estimation (IMU Sensor Fusion)**
-IMU data is fused to estimate the gimbal’s orientation (Yaw/Pitch) with smooth and stable outputs, improving overall system accuracy and robustness.
+* **✅ Anatomical Keypoint Tracking (YOLOv8-Pose & NCNN)**
+    Shifted from traditional bounding-box tracking to 17-keypoint skeletal estimation. By anchoring the tracking logic to the subject’s **Nose (Keypoint 0)**, the system fundamentally solves the "compositional drift" paradox, ensuring stable framing even when the subject's lower body is cropped as they approach the lens.
 
-✅ **Smooth Motion Control (Symmetric Soft Ramp & Deadzone)**
-Camera motion principles are translated into control algorithms, incorporating Symmetric Linear Soft Ramps and Continuous Soft Deadzone Compensation to eliminate low-speed cogging torque and provide natural, cinematic movement.
+* **✅ Non-Contact Gesture Interaction (HRI State Machine)**
+    Implemented a zero-overhead gesture recognition layer. A robust temporal state machine requires a "raised hand" gesture to be held for **17 frames (~1.5s)** to toggle tracking states, providing a seamless, hands-free operational switch with a built-in 35-frame cooldown to prevent accidental triggers.
 
-✅ **High-Precision Motor Control (FOC + PID)**
-Brushless motors are driven using the SimpleFOC framework, with well-tuned position and velocity PID loops to achieve precise and low-vibration actuation.
+* **✅ Smooth Motion Planning (Symmetric Soft Ramp & Deadzone)**
+    Camera motion principles are translated into a custom kinematic planner. We implemented a **Symmetric Linear Soft Ramp** (Step = 0.015) and a **Continuous Soft Deadzone** (±12px) to eliminate high-frequency oscillations and cogging torque, achieving cinematic, fluid movement without "sawtooth" jitter.
 
-✅ **Low-Latency Communication Architecture**
-Efficient UART communication combined with interrupt/callback mechanisms ensures fast and reliable transmission between the vision module and motor controller.
+* **✅ Deterministic Multi-Threaded Architecture**
+    The system runs on a decoupled triple-thread C++ architecture (Vision, Control, UART) using `std::mutex` and `std::atomic` for thread safety. This ensures the 86ms vision inference loop never blocks the high-frequency motor control dispatch, ensuring maximum system responsiveness.
 
-✅ **OLED-Based Real-time Visualization & Interaction**
-A 0.96" OLED display provides real-time feedback including orientation angles, system runtime, and detection confidence, along with button-based mode switching.
+* **✅ High-Precision Motor Actuation (SPWM & PID)**
+    Brushless motors are driven via a streamlined, bare-metal SPWM execution layer. By extracting core mathematical vectors and bypassing heavy third-party HALs, the system achieves hard real-time, low-vibration actuation directly from the control thread.
 
-✅ **Quantitative Latency Assessment**
-A dedicated C++ tool measures the full pipeline delay (from vision detection to motor response) with microsecond-level precision, ensuring real-time performance.
-
-✅ **Robustness & Reliability Engineering**
-Unit testing (Google Test) and memory analysis (Valgrind) are applied to ensure system stability, safety, and fail-safe operation.
+* **✅ Real-Time Performance & Latency Profiling**
+    Equipped with a custom profiling utility to monitor the full-pipeline delay with microsecond precision. The system maintains a consistent **~86ms end-to-end latency**, validated through extensive real-world tracking scenarios to ensure stability and high-frequency command dispatch (50Hz) via an optimized UART protocol.
 
 ## **🔧 Hardware Components**
 | Component                        | Specification                   | Quantity | Purpose                                                                 |
