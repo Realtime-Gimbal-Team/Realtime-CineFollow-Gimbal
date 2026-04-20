@@ -5,20 +5,40 @@
   <h1>👁️ IRIS</h1>
   <p><b>Real-time Intelligent Cine-Follow Gimbal</b></p>
   <p><i>The autonomous, real-time camera operator for solo content creators.</i></p>
+
+  <p>
+    <a href="https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/releases/tag/v1.0.0-Final">
+      <img src="https://img.shields.io/badge/Release-v1.0.0--Final-blue?style=for-the-badge&logo=github" alt="Release">
+    </a>
+    <a href="INSERT_YOUTUBE_LINK_HERE">
+      <img src="https://img.shields.io/badge/Demo_Video-Watch_Now-red?style=for-the-badge&logo=youtube" alt="Demo Video">
+    </a>
+    <a href="https://www.tiktok.com/@embedded629">
+      <img src="https://img.shields.io/badge/TikTok-Follow_Us-black?style=for-the-badge&logo=tiktok" alt="Social Media">
+    </a>
+  </p>
 </div>
 
 ---
 
 ## **📌 Project Overview**
-IRIS is a real-time, shooting-oriented pan-tilt gimbal designed as an intelligent camera accessory. It transcends a simple motorized mount by operating as a spatially aware, automated cinematography system. 
 
-Powered by Edge-AI and industrial-grade control algorithms, IRIS delivers:
-- **Millisecond-Level Response:** Utilizes the Raspberry Pi 5 for ultra-low latency target acquisition and locking.
-- **Cinematic Smoothness:** Replaces stiff mechanical movements with our custom kinetic smoothing algorithm, mimicking the fluid motion of a professional camera jib.
-- **Dual-Axis Synergy:** Coordinated Yaw and Pitch actuation fully covers dynamic subjects, completely freeing the creator's hands.
+**IRIS** is a high-performance, dual-axis cine-follow gimbal engineered to solve the "solo shooter" problem. By offloading complex tracking and stabilization tasks to an autonomous embedded system, IRIS allows creators to remain the focus of their story without needing a human camera operator.
 
-The current prototype supports smartphone payloads, with future compatibility planned for mirrorless and cinema cameras via standard 1/4-inch mounts.
+The project is built on the **Raspberry Pi 5** platform, pushing the boundaries of real-time computer vision and motion control in a mobile form factor.
 
+### 🛠️ Core Engineering Philosophy
+
+1.  **Low-Level Camera Integration (`libcamera`)**: 
+    We implemented a high-efficiency camera interface by **strictly adhering to the standard `libcamera` framework** recommended for the Raspberry Pi 5. By encapsulating the professor's prescribed C++ interface logic, we achieved seamless V4L2-level buffer management, ensuring that the OpenCV vision node receives raw frames with minimal kernel-to-userspace overhead.
+2.  **Deterministic Control Logic**: 
+    The system operates on a **100Hz deterministic control loop**. By utilizing `std::this_thread::sleep_until` and monotonic clocks, we ensure the Yaw and Pitch motors receive velocity updates at precise intervals, eliminating jitter caused by scheduling variances.
+3.  **Event-Driven Architecture**: 
+    Instead of wasteful polling, the IRIS software stack is entirely **event-driven**. Image acquisition triggers asynchronous callbacks, and motor commands are dispatched via non-blocking UART protocols, ensuring the CPU remains responsive to high-priority safety interrupts.
+4.  **Hardware-Software Synergy**: 
+    From custom 3D-printed axis arms to the SimpleFOC brushless drive implementation, every component is tuned to minimize mechanical resonance and maximize the tracking bandwidth of the Vision Node.
+
+---
 ## 📸 Prototype
 
 <p align="center">
@@ -119,6 +139,7 @@ make -j4
 
 # 4. Execute the Real-time Gimbal Node
 ./Realtime_CineFollow_Gimbal
+```
 
 ## **💻 Software Architecture**
 
