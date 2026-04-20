@@ -57,7 +57,7 @@ The project is built on the **Raspberry Pi 5** platform, pushing the boundaries 
 ## 👉 Division of responsibilities among team members
 - **Yining Liu (3153782Y)**: Led system decision-making, visual algorithm development, and core C++ architecture; implemented YOLO deployment, Greedy Distance Matching tracking, Symmetric Soft Ramp control logic, Mutex Threading Architecture, and latency-oriented performance evaluation.
 - **Zongwei Xie (3085969X)**: Developed the low-level motor control and hardware execution layer; implemented the motor driver based on SimpleFOC, tuned PID control loops, and handled real-time UART communication and protocol parsing.
-- **Yifei Wang (3147822W)**: Designed and implemented user interaction and physical data visualization; developed OLED display functions, button-based mode switching, and event-driven interaction logic using interrupts or callbacks.
+- **Yifei Wang (3147822W)**: Responsible for system integration and runtime logic; implemented mode switching and event-driven control, and assisted in debugging and improving system stability.
 - **Yandong Fan (3159430F)**: Took charge of reliability engineering and latency assessment; built quantitative timing tools, supported unit testing for core modules, and carried out memory and fault management checks.
 - **Chenxu Li (3091645L)**: Managed project coordination, revision control, and external promotion; defined Git branching and issue-tracking workflows, prepared reproducible project documentation, and supported public outreach on social media.
 
@@ -143,10 +143,76 @@ make -j4
 
 ## **💻 Software Architecture**
 
+The software architecture is engineered following **SOLID principles** and the **Sense-Think-Act** paradigm. To meet strict real-time deadlines, the system is horizontally decoupled into independent threads, ensuring that heavy computer vision workloads never block critical motor control loops. 
+
+All hardware communication and shared states are encapsulated in thread-safe classes with private data members, ensuring high reliability and ease of maintenance.
+
+### 📂 Directory Structure & Module Decoupling
+
+```text
+📦 Realtime-CineFollow-Gimbal
+ ┣ 📂 pico/Pico-firmware/       # Execution Layer: Microcontroller firmware
+ ┃ ┣ 📂 SimpleFOC_Core/         # Hardware-level FOC motor driving algorithms
+ ┃ ┗ 📂 src/                    # High-frequency PID loop execution
+ ┗ 📂 rpi_app/                  # High-Level Logic: Edge AI & Control
+   ┣ 📂 3rdparty/ncnn/          # Optimized neural network inference engine
+   ┣ 📂 include/                # Header files grouped by SOLID domains
+   ┃ ┣ 📂 comm/                 # UartDriver: Serial protocol encapsulation
+   ┃ ┣ 📂 control/              # Ramp generators and deadzone logic
+   ┃ ┣ 📂 utils/                # SharedState: Thread-safe data brokers
+   ┃ ┗ 📂 vision/               # VisionNode: Event-driven camera interface
+   ┣ 📂 models/                 # Pre-trained YOLOv8-pose weights
+   ┗ 📂 src/                    # Core C++ implementations (main.cpp, libcam interfaces)
+```
+🧱 Core Subsystems
+
+**Sense**: Event-Driven Vision (vision/VisionNode)
+Operating strictly on callbacks, the vision node retrieves zero-copy frame buffers from libcamera. It processes YOLOv8-pose inferences via NCNN and extracts pure pixel errors (target vs. anchor) without blocking the main CPU execution flow.
+
+**Think**: Thread-Safe State Management (utils/SharedState)
+To safely bridge the asynchronous vision pipeline and the deterministic control loop, the SharedState class acts as an exclusive data broker. It utilizes std::mutex and private properties with strict getter/setter interfaces, guaranteeing absolute thread safety and eliminating data races.
+
+**Act**: Deterministic Dispatch (comm/UartDriver)
+The control thread computes Symmetric Soft Ramps and dispatches continuous velocity commands. The UartDriver securely encapsulates these velocity primitives into structural packets and transmits them to the Pico-firmware.
+
+**Execution**: Embedded FOC Controller (pico/Pico-firmware)
+A dedicated Raspberry Pi Pico handles the lowest-level hardware interrupts. Running the SimpleFOC core, it translates abstract velocity commands into precise phase voltages, completely isolating the Raspberry Pi 5 from microsecond-level timing constraints.
 
 ## **📝3rd Party Components**
 
+This project leverages several industry-standard open-source libraries to ensure high performance and reliability. We extend our gratitude to the maintainers of the following projects:
+
+* **[NCNN](https://github.com/Tencent/ncnn)**: Tencent's high-performance neural network inference framework, highly optimized for mobile and edge platforms. 
+    * *Usage in IRIS:* Powers the real-time inference of our YOLOv8-pose model on the Raspberry Pi 5 CPU, delivering ultra-low latency human tracking without needing a dedicated GPU.
+* **[OpenCV 4.x](https://opencv.org/)**: The Open Source Computer Vision Library. 
+    * *Usage in IRIS:* Utilized for zero-copy frame buffer handling, image format conversions (BGR2RGB), and core matrix manipulations before feeding data into the neural network.
+* **[SimpleFOC](https://simplefoc.com/)**: An open-source Field Oriented Control (FOC) library for brushless motors. 
+    * *Usage in IRIS:* Deployed on the auxiliary Raspberry Pi Pico to drive the GM3506 gimbal motors. It handles the high-frequency PID execution and translates velocity commands into precise phase voltages.
+* **[libcamera](https://libcamera.org/)**: The standard Linux camera stack. 
+    * *Usage in IRIS:* Interfaced directly via C++ to communicate with the Raspberry Pi Camera Module 3, bypassing legacy overhead to ensure raw, minimal-latency frame acquisition.
+
+ 
 ## **🧠 Reference & Tutorials**
+
+The development of IRIS was grounded in rigorous academic research and adherence to professional embedded standards. Our work is built upon the following core theoretical and technical foundations:
+
+### 🔬 Primary Technical Frameworks
+* **[libcamera2opencv](https://github.com/berndporr/libcamera2opencv):** Developed by Prof. Bernd Porr. This repository served as the foundational driver for our vision pipeline, providing the critical C++ interface between `libcamera` and OpenCV mat structures on the Raspberry Pi 5.
+* **[ENG 5220 Course Materials - University of Glasgow]():** Theoretical frameworks for real-time scheduling, mutex-driven synchronization, and deterministic task execution as prescribed by the School of Engineering.
+
+### 👁️ Computer Vision & Edge AI
+* **[YOLOv8 & Ultralytics](https://github.com/ultralytics/ultralytics):** The state-of-the-art object detection framework. We referenced the original architecture to optimize the model's depth-to-latency ratio for real-time edge inference.
+* **[NCNN Optimization Guide](https://github.com/Tencent/ncnn/wiki/low-level-tuning):** Used for low-level tuning of ARM NEON instructions to accelerate convolution kernels on the Raspberry Pi 5's Cortex-A76 cores.
+* **[Research Paper: "YOLOv8: Real-Time Object Detection and Beyond"](https://arxiv.org/abs/2301.05519):** Studied for understanding the loss functions and spatial attention mechanisms that guided our choice of detection anchors.
+
+### 🕹️ Control Theory & Embedded Systems
+* **[SimpleFOC Documentation](https://docs.simplefoc.com/):** The definitive guide for Field Oriented Control implementation. We utilized this for tuning the phase current loops of our GM3506 brushless motors.
+* **[PID Control Theory - Ziegler-Nichols Method](https://en.wikipedia.org/wiki/Ziegler%E2%80%93Nichols_method):** Referenced for the systematic tuning of our dual-axis velocity and position loops to achieve cinematic stability.
+* **[Symmetric Linear Ramp Generation](https://en.wikipedia.org/wiki/Linear_ramp_function):** Theoretical basis for our custom motion smoothing algorithms, ensuring non-jerky transitions during rapid target acquisition.
+
+### ⚡ Real-Time Programming Standards
+* **[POSIX Threads (pthreads) Documentation](https://man7.org/linux/man-pages/man7/pthreads.7.html):** Used as the standard for our multithreaded architecture to ensure portable and predictable thread behavior under Linux.
+* **[Real-Time Linux (PREEMPT_RT) Concepts](https://rt.wiki.kernel.org/):** Studied to minimize interrupt latency and ensure our 100Hz control loop maintains high temporal determinism.
 
 ## **📊 Test & Assessment**
 
