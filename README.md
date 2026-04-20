@@ -33,7 +33,7 @@
 ### 📖 Quick Navigation
 > **Project for ENG 5220: Real Time Embedded Programming @ University of Glasgow**
 > 
-> [🌐 Online Manual](https://realtime-gimbal-team.github.io/CineFollow-Docs/) | [📄 Read Final Technical Report](./docs/) | [📦 Download 3D Print Models](./assets/3d_models/) | [🎬 Demo Video (TikTok)](https://vm.tiktok.com/ZNRq9RjLb/) | [🚀 Latest Release](https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/releases/tag/v1.0)
+> [🌐 Online Manual](https://realtime-gimbal-team.github.io/CineFollow-Docs/) | [📄 Read Final Technical Report](./docs/) | [📦 Download 3D Print Models](./assets/3d_models/) | [🎬 Demo Video (TikTok)](https://vm.tiktok.com/ZNRq9RjLb/) | 
 
 ---
 ---
