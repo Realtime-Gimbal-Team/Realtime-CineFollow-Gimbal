@@ -9,6 +9,7 @@ CineFollow-Gimbal is a real-time, shooting-oriented pan–tilt gimbal designed a
 <p align="center">
   <img src="https://raw.githubusercontent.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/main/iris.png" width="800"/>
 </p>
+
 ## **📌 Project Overview**
 
 Real-time Requirements : This project addresses a solid real-time requirement where any delay in image processing or PID calculation would result in jerky motion or tracking loss. 
