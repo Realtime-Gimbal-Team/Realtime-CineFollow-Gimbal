@@ -1,0 +1,56 @@
+name: Pico Firmware CI
+
+on:
+  push:
+    branches: [ "refactor-structure" ]
+  pull_request:
+    branches: [ "refactor-structure" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 1. Checkout repository code
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: 2. Install ARM cross-compiler and CMake
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential cmake ninja-build
+
+    - name: 3. Download and configure official Pico SDK
+      env:
+        PICO_SDK_URL: https://github.com/raspberrypi/pico-sdk.git
+      run: |
+        git clone --depth 1 $PICO_SDK_URL $HOME/pico-sdk
+        cd $HOME/pico-sdk
+        git submodule update --init
+
+    - name: 4. Map Directory and Configure CMake
+      run: |
+        export PICO_SDK_PATH=$HOME/pico-sdk
+        
+        # 1. Search for the directory containing CMakeLists.txt
+        REL_DIR=$(find . -maxdepth 4 -name "CMakeLists.txt" | grep -v "pico-sdk" | head -n 1 | xargs dirname)
+        
+        if [ -z "$REL_DIR" ]; then
+          echo "FATAL ERROR: Could not locate CMakeLists.txt"
+          exit 1
+        fi
+        
+        # 2. Convert to Absolute Path BEFORE entering the build folder
+        ABS_SRC_DIR=$(readlink -f "$REL_DIR")
+        echo "Source found at: $REL_DIR"
+        echo "Absolute Source Path: $ABS_SRC_DIR"
+        
+        # 3. Create build directory and run CMake using the absolute path
+        mkdir -p build && cd build
+        cmake "$ABS_SRC_DIR" -DCMAKE_BUILD_TYPE=Release -G Ninja
+
+    - name: 5. Execute full compilation
+      run: |
+        cd build
+        ninja
