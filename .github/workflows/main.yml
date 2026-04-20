@@ -5,7 +5,7 @@ on:
   push:
     branches: [ "main", "refactor-structure" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "refactor-structure" ]
 
 jobs:
   build:
@@ -39,6 +39,7 @@ jobs:
         cd build
         
         # Utilize Linux 'find' command to auto-detect the exact path of the firmware directory
+        # This solves path mismatch issues between Windows and Linux environments
         SRC_DIR=$(find "${{ github.workspace }}" -type d -iname "Pico-firmware" | head -n 1)
         
         # Fusing mechanism: Abort if the directory is completely missing
