@@ -74,6 +74,22 @@ The project is built on the **Raspberry Pi 5** platform, pushing the boundaries 
 - **Event-Driven Architecture:** Utilizes Callbacks and Lambdas to handle frame-ready events (`camera.startCapture`), significantly minimizing polling latency.
 - **Multithreading & Memory Safety:** Separated threads for vision acquisition, CV processing, and PID control using `std::thread`. Shared states are strictly protected by `std::mutex`. The system relies entirely on modern C++ (C++17) RAII for failsafe memory management with zero explicit `new/delete` operations.
 
+## System Architecture & Workflow
+
+The Iris Gimbal operates on a high-concurrency, multi-threaded architecture designed to bridge real-time AI perception with fluid mechanical actuation. The system is structured into three primary decoupled threads to ensure ultra-low latency and deterministic control.
+
+<p align="center">
+  <img src="assets/images/system_flowchart.png" alt="System Flowchart" width="800"/>
+<p align="center">
+  <img src="assets/images/system_flowchart2.png" alt="System Flowchart" width="800"/>
+</p>
+
+### Thread Logic Breakdown:
+
+* **Vision Perception Thread**: Executes YOLOv8-Pose inference (approx. 86ms) on the Raspberry Pi 5. It handles anatomical keypoint anchoring (Nose-point tracking) and manages the **1.5s gesture state machine** for non-contact interaction.
+* **Kinematic Control Thread**: Consumes visual error data to calculate target velocities. It utilizes a **Symmetric Step Smoothing** algorithm (step = 0.015) to eliminate high-frequency jitter and ensure cinematic motion profiles.
+* **UART Communication Thread**: Encapsulates velocity commands into the transmission protocol and dispatches them to the motor driver at a consistent 50Hz frequency.
+
 ## 👉 Division of responsibilities among team members
 - **Yining Liu (3153782Y)**: Led system decision-making, visual algorithm development, and core C++ architecture; implemented YOLO deployment, Greedy Distance Matching tracking, Symmetric Soft Ramp control logic, Mutex Threading Architecture, and latency-oriented performance evaluation.
 - **Zongwei Xie (3085969X)**: Developed the low-level motor control and hardware execution layer; implemented the motor driver based on SimpleFOC, tuned PID control loops, and handled real-time UART communication and protocol parsing.
