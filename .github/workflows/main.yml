@@ -1,0 +1,46 @@
+name: Pico Firmware CI
+
+# Trigger events: Triggers on pushes to the main or refactor-structure branches, or when a PR is opened
+on:
+  push:
+    branches: [ "main", "refactor-structure" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # Utilize GitHub's free Linux runner
+
+    steps:
+    - name: 1. Checkout repository code
+      uses: actions/checkout@v4
+      with:
+        submodules: true # Extremely important if git submodules are used in the project
+
+    - name: 2. Install ARM cross-compiler and CMake
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential cmake ninja-build
+
+    - name: 3. Download and configure official Pico SDK
+      env:
+        PICO_SDK_URL: https://github.com/raspberrypi/pico-sdk.git
+      run: |
+        git clone --depth 1 $PICO_SDK_URL $HOME/pico-sdk
+        cd $HOME/pico-sdk
+        git submodule update --init
+
+    - name: 4. Execute CMake environment configuration
+      env:
+        PICO_SDK_PATH: ${{ github.workspace }}/../pico-sdk # Explicitly declare the physical path of the SDK for CMake
+      run: |
+        export PICO_SDK_PATH=$HOME/pico-sdk
+        mkdir build
+        cd build
+        # Note: Point this to your actual source code directory pico/Pico-firmware
+        cmake ../pico/Pico-firmware -DCMAKE_BUILD_TYPE=Release -G Ninja
+
+    - name: 5. Execute full compilation
+      run: |
+        cd build
+        ninja
