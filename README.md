@@ -81,7 +81,7 @@ The Iris Gimbal operates on a high-concurrency, multi-threaded architecture desi
 <p align="center">
   <img src="assets/images/system_flowchart.png" alt="System Flowchart" width="800"/>
 <p align="center">
-  <img src="assets/images/system_flowchart2.png" alt="System Flowchart" width="800"/>
+  <img src="assets/images/system_flowchart2.png" alt="System Flowchart" width="300"/>
 </p>
 
 ### Thread Logic Breakdown:
