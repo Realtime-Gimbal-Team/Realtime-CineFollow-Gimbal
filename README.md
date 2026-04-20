@@ -11,7 +11,15 @@ CineFollow-Gimbal is a real-time, shooting-oriented pan–tilt gimbal designed a
 </p>
 
 ## **📌 Project Overview**
+## 📸 Prototype
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/main/project.png" width="700"/>
+</p>
+
+<p align="center">
+  Physical prototype of the IRIS real-time cine-follow gimbal system.
+</p>
 Real-time Requirements : This project addresses a solid real-time requirement where any delay in image processing or PID calculation would result in jerky motion or tracking loss. 
 
 Multithreading: Separated threads for image acquisition, CV processing, and PID control using std::thread. 
