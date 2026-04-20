@@ -37,8 +37,18 @@ jobs:
         export PICO_SDK_PATH=$HOME/pico-sdk
         mkdir build
         cd build
-        # Note: Point this to your actual source code directory pico/Pico-firmware
-        cmake ../pico/Pico-firmware -DCMAKE_BUILD_TYPE=Release -G Ninja
+        
+        # Utilize Linux 'find' command to auto-detect the exact path of the firmware directory
+        SRC_DIR=$(find "${{ github.workspace }}" -type d -iname "Pico-firmware" | head -n 1)
+        
+        # Fusing mechanism: Abort if the directory is completely missing
+        if [ -z "$SRC_DIR" ]; then
+          echo "FATAL ERROR: Could not find 'Pico-firmware' directory in the repository."
+          exit 1
+        fi
+        
+        echo "Auto-detected CMake source directory: $SRC_DIR"
+        cmake "$SRC_DIR" -DCMAKE_BUILD_TYPE=Release -G Ninja
 
     - name: 5. Execute full compilation
       run: |
