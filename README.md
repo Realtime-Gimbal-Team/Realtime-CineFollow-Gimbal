@@ -61,7 +61,7 @@ ThreadManager: Manages real-time thread priorities and safe data exchange.
 
 🔄 Software testing & debugging ··································································································✅[Completed]
 
-📢 Project promotion (social media & Hackaday) ·································································✅[Completed]
+📢 Project promotion  ·································································✅[Completed]
 
 ## **🎯 Key Features**
 ✅ Real-time Object Tracking (YOLO + ByteTrack)
