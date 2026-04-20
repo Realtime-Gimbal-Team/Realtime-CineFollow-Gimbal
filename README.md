@@ -242,7 +242,7 @@ The development of IRIS was grounded in rigorous academic research and adherence
 
 ### 🔬 Primary Technical Frameworks
 * **[libcamera2opencv](https://github.com/berndporr/libcamera2opencv):** Developed by Prof. Bernd Porr. This repository served as the foundational driver for our vision pipeline, providing the critical C++ interface between `libcamera` and OpenCV mat structures on the Raspberry Pi 5.
-* **[ENG 5220 Course Materials - University of Glasgow]():** Theoretical frameworks for real-time scheduling, mutex-driven synchronization, and deterministic task execution as prescribed by the School of Engineering.
+
 
 ### 👁️ Computer Vision & Edge AI
 * **[YOLOv8 & Ultralytics](https://github.com/ultralytics/ultralytics):** The state-of-the-art object detection framework. We referenced the original architecture to optimize the model's depth-to-latency ratio for real-time edge inference.
