@@ -62,7 +62,7 @@ The project is built on the **Raspberry Pi 5** platform, pushing the boundaries 
 ## 📸 Prototype
 
 <p align="center">
-  <img src="assets/images/project.png" width="700"/>
+  <img src="assets/images/prototype.png" width="700"/>
 </p>
 
 <p align="center">
