@@ -153,6 +153,7 @@ All hardware communication and shared states are encapsulated in thread-safe cla
 📦 Realtime-CineFollow-Gimbal
  ┣ 📂 pico/Pico-firmware/       # Execution Layer: Microcontroller firmware
  ┃ ┣ 📂 SimpleFOC_Core/         # Hardware-level FOC motor driving algorithms
+ ┣ ┣ 📂 include/                # Header files
  ┃ ┗ 📂 src/                    # High-frequency PID loop execution
  ┗ 📂 rpi_app/                  # High-Level Logic: Edge AI & Control
    ┣ 📂 3rdparty/ncnn/          # Optimized neural network inference engine
