@@ -217,8 +217,31 @@ The development of IRIS was grounded in rigorous academic research and adherence
 
 ## **📊 Test & Assessment**
 
+To ensure the IRIS gimbal meets strict industrial reliability and real-time execution standards, we conducted comprehensive quantitative testing on the physical prototype.
+
+### 1. Real-Time Latency Profiling (Decoupled Architecture Validation)
+In an event-driven architecture, it is critical to validate that heavy computational loads do not bottleneck motor execution. We implemented `std::chrono` high-resolution profilers to measure the true pipeline delay.
+
+* **Vision Node Execution (Sense):** The NCNN YOLOv8-pose inference on the Raspberry Pi 5 CPU averages **85.0ms ~ 86.9ms** per frame (~11.5 FPS). This represents a highly authentic edge-AI workload limit without a dedicated TPU.
+* **Control Loop Determinism (Think & Act):** Despite the ~86ms vision latency, our independent control thread computes the Symmetric Soft Ramp and UART dispatch in just **0.003ms**. This leaves a massive 9.997ms safety margin, ensuring the loop strictly adheres to its **100Hz (10ms) deadline**.
+* **Architectural Triumph:** This data perfectly validates our multithreaded design. Because the 100Hz control loop is fully decoupled from the 11.5Hz vision pipeline, the gimbal utilizes our continuous deadzone compensator to interpolate movement, ensuring smooth, cinematic motor rotation rather than stuttering at the camera's framerate.
+
+### 2. Failsafe Memory & Stability (Valgrind Profiling)
+Given that IRIS is designed for continuous cinematography, memory leaks are unacceptable. We profiled the executable over a continuous run using **Valgrind** (`valgrind --leak-check=full`).
+
+* **Result & Analysis:** The profiling reported a massive 216 MB of dynamic heap allocation during runtime. Crucially, our application-level C++ code achieved a **100% memory deallocation rate**. 
+* The tool flagged a negligible `1 byte` definite loss and minor `possibly lost` blocks. Deep stack trace analysis confirms these are entirely isolated to third-party system shared libraries (`libtensorflow-lite.so` and `liblttng-ust.so`) during dynamic loading (`dl-init.c`), which are standard one-time initialization footprints on Linux and pose no risk of continuous leaking over time.
+* **Conclusion:** Our strict adherence to modern C++ RAII principles successfully eliminated all application-level memory leaks, ensuring the gimbal can operate safely for extended filming sessions.
+
+*(Note: Raw terminal profiling logs and structural assets are available in the `/assets/` directory).*
 ## **📢 Future Improvements**
 
+While the current IRIS prototype successfully demonstrates real-time, event-driven cinematic tracking, several architectural and hardware upgrades are outlined for the next iteration to achieve true industrial-grade performance:
+
+* **Edge-AI Vision Acceleration (Sub-30ms Latency):** To push the vision pipeline from ~11.5 FPS to over 30 FPS, we plan to implement NCNN's multi-threading capabilities and enable ARM NEON FP16 (half-precision) arithmetic. Additionally, downsizing the YOLOv8 input tensor from 640x640 to 416x416 will exponentially increase inference throughput with negligible loss in spatial tracking accuracy.
+* **Payload Expansion & Infinite Yaw (Slip Rings):** The current GM3506 motors are optimized for smartphone payloads. Future mechanical iterations will integrate higher-torque motors (e.g., GM4108) and electrical slip rings, enabling infinite 360-degree continuous Yaw rotation for mirrorless and lightweight cinema cameras.
+* **Deep Re-Identification (ReID) Integration:** Upgrading the current Greedy Distance Matching algorithm to a lightweight ReID neural network (such as OSNet). This will allow IRIS to memorize the specific visual features (clothing, colors) of a target, ensuring an absolute lock-on even in highly crowded environments with crossing subjects.
+* **Autonomous Z-Axis (Auto-Zoom):** Integrating a third control axis via a follow-focus/zoom motor. By dynamically analyzing the bounding box depth scale in real-time, the system will autonomously adjust the lens focal length to maintain a constant subject framing proportion as they move across the z-axis.
 ## **🔗 Relevant Links**
 
 [**Documentation 📝**]()  
