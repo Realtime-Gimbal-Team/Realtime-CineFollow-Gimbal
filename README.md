@@ -1,7 +1,7 @@
 # Realtime-CineFollow-Gimbal
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/main/iris.png" width="800"/>
+  <img src="assets/images/iris.png" width="800"/>
   <h1>👁️ IRIS</h1>
   <p><b>Real-time Intelligent Cine-Follow Gimbal</b></p>
   <p><i>The autonomous, real-time camera operator for solo content creators.</i></p>
@@ -10,7 +10,7 @@
     <a href="https://realtime-gimbal-team.github.io/CineFollow-Docs/">
       <img src="https://img.shields.io/badge/Docs-Project_Manual-blueviolet?style=for-the-badge&logo=gitbook" alt="Documentation">
     </a>
-    <a href="./docs/Final_Report_Yining_Liu.pdf">
+    <a href="./docs/Final_Technical_Report.pdf">
       <img src="https://img.shields.io/badge/Report-Technical_Paper-green?style=for-the-badge&logo=read-the-docs" alt="Technical Report">
     </a>
     <a href="INSERT_YOUTUBE_LINK_HERE">
@@ -62,7 +62,7 @@ The project is built on the **Raspberry Pi 5** platform, pushing the boundaries 
 ## 📸 Prototype
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/main/project.png" width="700"/>
+  <img src="assets/images/project.png" width="700"/>
 </p>
 
 <p align="center">
