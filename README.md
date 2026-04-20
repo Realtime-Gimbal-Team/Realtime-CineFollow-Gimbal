@@ -7,18 +7,35 @@
   <p><i>The autonomous, real-time camera operator for solo content creators.</i></p>
 
   <p>
-    <a href="https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/releases/tag/v1.0.0-Final">
-      <img src="https://img.shields.io/badge/Release-v1.0.0--Final-blue?style=for-the-badge&logo=github" alt="Release">
+    <a href="./docs/Final_Report_Yining_Liu.pdf">
+      <img src="https://img.shields.io/badge/Report-Technical_Paper-green?style=for-the-badge&logo=read-the-docs" alt="Technical Report">
     </a>
     <a href="INSERT_YOUTUBE_LINK_HERE">
       <img src="https://img.shields.io/badge/Demo_Video-Watch_Now-red?style=for-the-badge&logo=youtube" alt="Demo Video">
     </a>
+    <a href="https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/releases/tag/v1.0.0-Final">
+      <img src="https://img.shields.io/badge/Release-v1.0.0--Final-blue?style=for-the-badge&logo=github" alt="Release">
+    </a>
+  </p>
+
+  <p>
+    <a href="./assets/3d_models/">
+      <img src="https://img.shields.io/badge/Hardware-3D_Models-orange?style=flat-square&logo=autodesk" alt="3D Models">
+    </a>
     <a href="https://www.tiktok.com/@embedded629">
-      <img src="https://img.shields.io/badge/TikTok-Follow_Us-black?style=for-the-badge&logo=tiktok" alt="Social Media">
+      <img src="https://img.shields.io/badge/TikTok-Follow_Us-black?style=flat-square&logo=tiktok" alt="Social Media">
     </a>
   </p>
 </div>
 
+---
+
+### 📖 Quick Navigation
+> **Project for ENG 5220: Real Time Embedded Programming @ University of Glasgow**
+> 
+> [📄 Read Final Technical Report](./docs/) | [📦 Download 3D Print Models](./assets/3d_models/) | [🎬 Demo Video (YouTube)](INSERT_YOUTUBE_LINK_HERE) | [🚀 Latest Release](https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/releases/tag/v1.0.0-Final)
+
+---
 ---
 
 ## **📌 Project Overview**
@@ -121,6 +138,13 @@ Unit testing (Google Test) and memory analysis (Valgrind) are applied to ensure 
 | Phone Clamp                      | Adjustable holder               |        1 | Holds the mobile phone securely on the gimbal platform                  |
 | iPhone 13 mini                   | Smartphone payload              |        1 | Target payload for stabilization and tracking demonstration             |
 | M2 / M2.5 Screws and Nuts        | Fasteners                       | Assorted | Mechanical assembly and structural fixing                               |
+
+### 🔧 3D Printed Structural Assets
+All custom mechanical components are available in the `/assets/3d_models/` directory for reproduction:
+* `iris_base_mount.stl`: Primary mounting stand.
+* `iris_yaw_arm_l_shape.stl`: Main Yaw-axis structural arm.
+* `iris_pitch_motor_bracket.stl`: Pitch-axis GM3506 motor mounting bracket.
+* `iris_payload_plate.stl`: Platform for smartphone/camera payload.
 
 ## **💻 How to Reproduce (Build Instructions)**
 To ensure maximum reproducibility, follow these steps to build the project on a Raspberry Pi 5 running Linux:
