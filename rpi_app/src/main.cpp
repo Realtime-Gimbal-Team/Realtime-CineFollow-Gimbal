@@ -5,55 +5,50 @@
 #include <csignal>
 #include <cmath>
 #include <mutex>
+#include <iomanip>
+#include <algorithm> // 用于 std::max 和 std::min
+
 #include <ncnn/net.h>
 #include <ncnn/mat.h>
 
-// 引入工程规范的四大核心组件 (请确保这些头文件在你的 include 目录下)
 #include "utils/SharedState.h"
-#include "control/TrajectoryPlanner.h"
+// #include "control/TrajectoryPlanner.h" // 🚨 彻底注销，坚决不用！
 #include "comm/UartDriver.h"
 #include "vision/VisionNode.h"
 
-// 全局运行标志位与共享状态中枢
 std::atomic<bool> running(true);
 SharedState state;
 
-// 信号处理：捕捉 Ctrl+C，优雅退出，防止终端卡死
 void signalHandler(int signum) {
-    std::cout << "\n[System] Interrupt signal (" << signum << ") received. Shutting down...\n";
+    std::cout << "\n[System] Shutting down NAKED RPi5 Gimbal Node...\n";
     running = false;
 }
 
 // ==========================================
-// 线程 1：视觉感知线程 (Vision Thread)
+// 线程 1：视觉感知 (🚨 彻底剥离滤波，暴露出原始误差)
 // ==========================================
 void visionThread() {
-    // ==========================================
-    // 1. NCNN AI 大脑初始化 (只执行一次)
-    // ==========================================
-    ncnn::Net yolov8;
-    yolov8.opt.use_vulkan_compute = false; 
-    yolov8.opt.num_threads = 4;            
-
-    // 🚨 注意路径：如果你的可执行文件在 build 里，模型在工程根目录的 models 里，必须用 ../
-    if (yolov8.load_param("../models/yolov8n.param") || yolov8.load_model("../models/yolov8n.bin")) {
-        std::cerr << "[Vision] Error: NCNN load failed! Please check if the path is correct." << std::endl;
+    ncnn::Net yolov8_pose;
+    if (yolov8_pose.load_param("../models/yolov8n-pose.param") || 
+        yolov8_pose.load_model("../models/yolov8n-pose.bin")) {
+        std::cerr << "[Vision] Error: Pose Model missing!" << std::endl;
         return;
     }
-    std::cout << "[Vision] NCNN YOLOv8 Engine Loaded." << std::endl;
 
-    // ==========================================
-    // 2. 硬件摄像头初始化
-    // ==========================================
+    // 保持你之前验证过的极性
+    const float X_POLARITY = -1.0f;  
+    const float Y_POLARITY = 1.0f; 
+    
+    const float TARGET_X = 160.0f;
+    const float TARGET_Y = 140.0f; 
+
     VisionNode camera;
     if (!camera.init()) return;
 
-    // 🌟 线程安全的帧缓冲区 🌟
     std::mutex frame_mutex;
     cv::Mat latest_frame;
     bool has_new_frame = false;
 
-    // 生产者：极速拷贝硬件图像，绝对不阻塞
     camera.startCapture([&](const cv::Mat& frame) {
         if (!running) return;
         std::lock_guard<std::mutex> lock(frame_mutex);
@@ -61,185 +56,141 @@ void visionThread() {
         has_new_frame = true; 
     });
 
-    std::cout << "[Vision] Pipeline Active. Real-time Inference Started." << std::endl;
+    std::cout << "[Vision] NAKED Mode Active. ALL FILTERS DISABLED." << std::endl;
 
-    // ==========================================
-    // 3. 消费者：AI 独立推理主循环
-    // ==========================================
     while(running) { 
         cv::Mat current_frame;
-        
-        // 【抢图】安全地从缓冲区抢出最新的一帧图像
         {
             std::lock_guard<std::mutex> lock(frame_mutex);
             if (has_new_frame) {
-                latest_frame.copyTo(current_frame);
+                current_frame = latest_frame;
                 has_new_frame = false;
             }
         }
-
-        // 如果没拿到新图，休眠 2ms 让出 CPU
         if (current_frame.empty()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(2));
-            continue; 
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            continue;
         }
 
-        // 【前向传播】图像缩放与推理
-        const int target_size = 320; 
-        ncnn::Mat in = ncnn::Mat::from_pixels_resize(
-            current_frame.data, 
-            ncnn::Mat::PIXEL_BGR2RGB, 
-            current_frame.cols, current_frame.rows, 
-            target_size, target_size
-        );
-
-        const float norm_vals[3] = {1 / 255.0f, 1 / 255.0f, 1 / 255.0f};
+        const int input_size = 640; 
+        ncnn::Mat in = ncnn::Mat::from_pixels_resize(current_frame.data, ncnn::Mat::PIXEL_BGR2RGB, 
+                                                    current_frame.cols, current_frame.rows, 
+                                                    input_size, input_size);
+        const float norm_vals[3] = {1/255.f, 1/255.f, 1/255.f};
         in.substract_mean_normalize(0, norm_vals);
 
-        ncnn::Extractor ex = yolov8.create_extractor();
+        ncnn::Extractor ex = yolov8_pose.create_extractor();
         ex.input("in0", in); 
         ncnn::Mat out;
         ex.extract("out0", out); 
 
-        // ==========================================
-        // 🎯 核心后处理：YOLOv8 Bounding Box 解码
-        // ==========================================
-        bool target_found = false;
-        float cx = 0.0f;
-        float cy = 0.0f;
+        bool found = false;
+        float anchor_x = 160.0f, anchor_y = 160.0f;
+        float max_s = 0.0f;
 
-        // 获取输出数据指针 (YOLOv8 的输出通常是 [1, 84, 8400])
-        float* data = out.row(0);
-        float max_score = 0.0f;
-        float best_cx = 0.0f;
-        float best_cy = 0.0f;
+        if (!out.empty() && out.h == 56) {
+            for (int i = 0; i < out.w; i++) {
+                float score = out.row(4)[i]; 
+                if (score > 0.45f && score > max_s) {
+                    max_s = score;
+                    float nose_x = out.row(5)[i] / 2.0f;
+                    float nose_y = out.row(6)[i] / 2.0f;
+                    float nose_conf = out.row(7)[i];
 
-        // 遍历 8400 个候选框
-        for (int i = 0; i < 8400; i++) {
-            // 索引 0-3 是框的坐标，从索引 4 开始是类别置信度
-            // 我们只关心“人 (Person)”，即类别 0，它的置信度在 data[4 * 8400 + i]
-            float score = data[4 * 8400 + i]; 
-
-            // 过滤阈值：置信度大于 45%，且只追踪画面里最确定的那个人
-            if (score > 0.45f && score > max_score) {
-                max_score = score;
-                best_cx = data[0 * 8400 + i]; // 获取基于 320 尺度的中心点 X
-                best_cy = data[1 * 8400 + i]; // 获取基于 320 尺度的中心点 Y
-                target_found = true;
+                    if (nose_conf > 0.5f) {
+                        anchor_x = nose_x;
+                        anchor_y = nose_y;
+                    } else {
+                        float l_sh_x = out.row(20)[i]/2.0f, l_sh_y = out.row(21)[i]/2.0f;
+                        float r_sh_x = out.row(23)[i]/2.0f, r_sh_y = out.row(24)[i]/2.0f;
+                        anchor_x = (l_sh_x + r_sh_x) / 2.0f;
+                        anchor_y = (l_sh_y + r_sh_y) / 2.0f - 20.0f; 
+                    }
+                    found = true;
+                }
             }
         }
 
-        if (target_found) {
-            // 将 320 尺度下的坐标，等比例放大回真实的 640x480 物理世界中
-            cx = best_cx * (current_frame.cols / (float)target_size);
-            cy = best_cy * (current_frame.rows / (float)target_size);
+        if (found) {
+            // 🚨 算出最纯粹的像素误差，没有任何平滑、没有任何衰减
+            float raw_x = (anchor_x - TARGET_X) * X_POLARITY;
+            float raw_y = (anchor_y - TARGET_Y) * Y_POLARITY;
 
-            // 计算物理像素误差
-            float ex_err = cx - (current_frame.cols / 2.0f);
-            float ey_err = cy - (current_frame.rows / 2.0f);
-            
-            // 下发追踪指令！
-            state.updateVision(ex_err, ey_err, true); 
+            // 直接将最原始的误差塞给控制线程
+            state.updateVision(raw_x, raw_y, true); 
         } else {
-            // 视野里没找到人，刹车
             state.updateVision(0.0f, 0.0f, false);
         }
     }
 }
 
 // ==========================================
-// 线程 2：控制与轨迹规划线程 (Control Thread)
+// 线程 2：控制规划 (🚨 物理轴对齐版 - 修正参数 1 为 Yaw 的错误)
 // ==========================================
 void controlThread() {
-    // 实例化 S 曲线规划器
-    // 参数: 允许最大速度 2.0 rad/s, 最大加速度 5.0 rad/s^2, 像素死区 10px
-    TrajectoryPlanner planner(0.5f, 0.5f, 10.0f);
-    
-    const int control_hz = 100; // 100Hz 高频控制计算
-    const float dt = 1.0f / control_hz;
-
-    std::cout << "[Control] Thread started. S-Curve Planner Active @ 100Hz." << std::endl;
+    // 采用极简 P 控制进行物理验证
+    const float KP_YAW = 0.003f;   
+    const float KP_PITCH = 0.003f; 
+    const float DEADZONE = 12.0f;  
 
     while (running) {
         auto start = std::chrono::steady_clock::now();
-
-        // 1. 从共享内存读取最新视觉状态
         VisionData vd = state.getVision();
         
-        // 2. 运行 S 曲线平滑计算 (将像素偏差转化为平滑角速度)
-        float vp, vy;
-        planner.computeVelocity(vd.ex, vd.ey, vd.target_found, dt, vp, vy);
-        
-        // 3. 将计算好的速度写入指令区
-        state.updateCommand(vp, vy);
+        float v_x = 0.0f; // 水平速度 (欲发给 Yaw)
+        float v_y = 0.0f; // 垂直速度 (欲发给 Pitch)
 
-        // 严格定时
-        std::this_thread::sleep_until(start + std::chrono::milliseconds(1000 / control_hz));
+        if (vd.target_found) {
+            if (std::abs(vd.ex) > DEADZONE) v_x = vd.ex * KP_YAW;
+            if (std::abs(vd.ey) > DEADZONE) v_y = vd.ey * KP_PITCH;
+
+            // 限速
+            v_x = std::max(-0.6f, std::min(0.6f, v_x));
+            v_y = std::max(-0.6f, std::min(0.6f, v_y));
+        }
+
+        // 🚨 拨乱反正核心：
+        // 既然你的硬件把第一个参数当成了 Yaw，第二个当成了 Pitch
+        // 那么：updateCommand(水平速度 v_x, 垂直速度 v_y)
+        // 这样软件的 v_x 就会准确流向硬件的水平电机！
+        state.updateCommand(v_x, v_y);
+
+        std::this_thread::sleep_until(start + std::chrono::milliseconds(10));
     }
 }
 
 // ==========================================
-// 线程 3：串口通信下发线程 (UART TX Thread)
+// 线程 3：串口下发
 // ==========================================
 void uartThread() {
     UartDriver uart;
-    
-    // 初始化串口：这里我们锁定了外部引脚 /dev/serial0
-    if (!uart.init("/dev/serial0")) {
-        std::cerr << "[UART] Error: Failed to open serial port!" << std::endl;
-        return;
-    }
-    std::cout << "[UART] Port Opened. 14-byte Protocol Transmission Active @ 50Hz." << std::endl;
-
-    const int uart_hz = 50; // 50Hz 通信下发频率
+    if (!uart.init("/dev/serial0")) return;
 
     while (running) {
         auto start = std::chrono::steady_clock::now();
-
-        // 1. 读取控制线程算好的最新速度
         VelocityCommand cmd = state.getCommand();
-        
-        // 2. 封装 14 字节并下发
         uart.sendVelocity(cmd.pitch_vel, cmd.yaw_vel);
-
-        // 终端打印当前下发的速度，方便你肉眼核对电机转向
-        std::cout << "TX -> Pitch Vel: " << cmd.pitch_vel << " | Yaw Vel: " << cmd.yaw_vel << "\r" << std::flush;
-
-        // 严格定时
-        std::this_thread::sleep_until(start + std::chrono::milliseconds(1000 / uart_hz));
+        std::this_thread::sleep_until(start + std::chrono::milliseconds(20));
     }
-    std::cout << std::endl; // 退出时换行
 }
 
-
-// ==========================================
-// 主函数：系统初始化与守护
-// ==========================================
 int main() {
-    // 绑定 Ctrl+C 信号
     std::signal(SIGINT, signalHandler);
+    std::cout << "==================================================" << std::endl;
+    std::cout << "[System] CineFollow DIAGNOSTIC NAKED BUILD Active" << std::endl;
+    std::cout << "==================================================" << std::endl;
 
-    std::cout << "========================================" << std::endl;
-    std::cout << "[System] Realtime CineFollow Gimbal RPi5" << std::endl;
-    std::cout << "[System] IBVS Mode | Multi-threading ON " << std::endl;
-    std::cout << "========================================" << std::endl;
-
-    // 启动多线程并发
     std::thread t1(visionThread);
     std::thread t2(controlThread);
     std::thread t3(uartThread);
 
-    // 主守护线程：只要 running 为 true，主线程就不退出
     while (running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
-    // 等待所有子线程安全汇合
-    std::cout << "\n[System] Joining threads..." << std::endl;
     if (t1.joinable()) t1.join();
     if (t2.joinable()) t2.join();
     if (t3.joinable()) t3.join();
     
-    std::cout << "[System] Shutdown complete." << std::endl;
     return 0;
 }
