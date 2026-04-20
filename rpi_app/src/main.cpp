@@ -6,13 +6,12 @@
 #include <cmath>
 #include <mutex>
 #include <iomanip>
-#include <algorithm> // 用于 std::max 和 std::min
+#include <algorithm> // For std::max and std::min
 
 #include <ncnn/net.h>
 #include <ncnn/mat.h>
 
 #include "utils/SharedState.h"
-// #include "control/TrajectoryPlanner.h" // 🚨 彻底注销，坚决不用！
 #include "comm/UartDriver.h"
 #include "vision/VisionNode.h"
 
@@ -20,12 +19,12 @@ std::atomic<bool> running(true);
 SharedState state;
 
 void signalHandler(int signum) {
-    std::cout << "\n[System] Shutting down NAKED RPi5 Gimbal Node...\n";
+    std::cout << "\n[System] Shutting down Iris Gimbal Node...\n";
     running = false;
 }
 
 // ==========================================
-// 线程 1：视觉感知 (🚨 彻底剥离滤波，暴露出原始误差)
+// Thread 1: Vision Perception (Greedy Matching Tracker with Fallback Recovery)
 // ==========================================
 void visionThread() {
     ncnn::Net yolov8_pose;
@@ -35,12 +34,12 @@ void visionThread() {
         return;
     }
 
-    // 保持你之前验证过的极性
+    // Immutable Baseline Polarities
     const float X_POLARITY = -1.0f;  
     const float Y_POLARITY = 1.0f; 
     
     const float TARGET_X = 160.0f;
-    const float TARGET_Y = 140.0f; 
+    const float TARGET_Y = 100.0f; 
 
     VisionNode camera;
     if (!camera.init()) return;
@@ -49,6 +48,7 @@ void visionThread() {
     cv::Mat latest_frame;
     bool has_new_frame = false;
 
+    // Asynchronous event-driven callback for frame capture
     camera.startCapture([&](const cv::Mat& frame) {
         if (!running) return;
         std::lock_guard<std::mutex> lock(frame_mutex);
@@ -56,7 +56,10 @@ void visionThread() {
         has_new_frame = true; 
     });
 
-    std::cout << "[Vision] NAKED Mode Active. ALL FILTERS DISABLED." << std::endl;
+    std::cout << "[Vision] NAKED Mode Active. Tracking algorithm: Greedy Matching." << std::endl;
+
+    static float last_target_x = TARGET_X;
+    static float last_target_y = TARGET_Y;
 
     while(running) { 
         cv::Mat current_frame;
@@ -85,38 +88,66 @@ void visionThread() {
         ex.extract("out0", out); 
 
         bool found = false;
-        float anchor_x = 160.0f, anchor_y = 160.0f;
-        float max_s = 0.0f;
+        float min_distance = 9999.0f; 
+        float best_x = TARGET_X;
+        float best_y = TARGET_Y;
+
+        // Fallback variables in case target moves completely out of bounds and returns
+        float fallback_x = TARGET_X;
+        float fallback_y = TARGET_Y;
+        float max_fallback_conf = 0.0f;
 
         if (!out.empty() && out.h == 56) {
             for (int i = 0; i < out.w; i++) {
                 float score = out.row(4)[i]; 
-                if (score > 0.45f && score > max_s) {
-                    max_s = score;
+                if (score > 0.45f) {
                     float nose_x = out.row(5)[i] / 2.0f;
                     float nose_y = out.row(6)[i] / 2.0f;
                     float nose_conf = out.row(7)[i];
 
-                    if (nose_conf > 0.5f) {
-                        anchor_x = nose_x;
-                        anchor_y = nose_y;
-                    } else {
+                    float current_x = nose_x;
+                    float current_y = nose_y;
+
+                    if (nose_conf <= 0.5f) {
                         float l_sh_x = out.row(20)[i]/2.0f, l_sh_y = out.row(21)[i]/2.0f;
                         float r_sh_x = out.row(23)[i]/2.0f, r_sh_y = out.row(24)[i]/2.0f;
-                        anchor_x = (l_sh_x + r_sh_x) / 2.0f;
-                        anchor_y = (l_sh_y + r_sh_y) / 2.0f - 20.0f; 
+                        current_x = (l_sh_x + r_sh_x) / 2.0f;
+                        current_y = (l_sh_y + r_sh_y) / 2.0f - 20.0f; 
                     }
-                    found = true;
+                    
+                    // Track highest confidence target as a fallback safety mechanism
+                    if (score > max_fallback_conf) {
+                        max_fallback_conf = score;
+                        fallback_x = current_x;
+                        fallback_y = current_y;
+                    }
+
+                    float dx = current_x - last_target_x;
+                    float dy = current_y - last_target_y;
+                    float distance = std::sqrt(dx*dx + dy*dy);
+
+                    if (distance < min_distance && distance < 150.0f) {
+                        min_distance = distance;
+                        best_x = current_x;
+                        best_y = current_y;
+                        found = true;
+                    }
                 }
             }
         }
 
-        if (found) {
-            // 🚨 算出最纯粹的像素误差，没有任何平滑、没有任何衰减
-            float raw_x = (anchor_x - TARGET_X) * X_POLARITY;
-            float raw_y = (anchor_y - TARGET_Y) * Y_POLARITY;
+        // 🌟 FATAL DEADLOCK FIX: If tracking is lost but someone is in frame, re-acquire highest confidence target
+        if (!found && max_fallback_conf > 0.45f) {
+            best_x = fallback_x;
+            best_y = fallback_y;
+            found = true;
+        }
 
-            // 直接将最原始的误差塞给控制线程
+        if (found) {
+            last_target_x = best_x;
+            last_target_y = best_y;
+            float raw_x = (best_x - TARGET_X) * X_POLARITY;
+            float raw_y = (best_y - TARGET_Y) * Y_POLARITY;
             state.updateVision(raw_x, raw_y, true); 
         } else {
             state.updateVision(0.0f, 0.0f, false);
@@ -125,42 +156,71 @@ void visionThread() {
 }
 
 // ==========================================
-// 线程 2：控制规划 (🚨 物理轴对齐版 - 修正参数 1 为 Yaw 的错误)
+// Thread 2: Control Planning (Symmetric Soft Ramp Version - FIX FOR YAW STUTTER)
 // ==========================================
 void controlThread() {
-    // 采用极简 P 控制进行物理验证
-    const float KP_YAW = 0.003f;   
-    const float KP_PITCH = 0.003f; 
+    const float KP_YAW = 0.005f;   
+    const float KP_PITCH = 0.005f; 
     const float DEADZONE = 12.0f;  
+    const float MAX_VEL = 0.4f;
+
+    // 🌟 核心修正：废除非对称斜坡，回归绝对对称！
+    // 统一使用 0.015 作为避震器的步长，双向平等过滤 YOLO 噪声。
+    // 这将彻底砍掉高频锯齿波，消除 Yaw 轴的一顿一顿感。
+    const float SYMMETRIC_STEP = 0.015f; 
+
+    float cur_v_yaw = 0.0f;
+    float cur_v_pitch = 0.0f;
+
+    int log_counter = 0; 
 
     while (running) {
         auto start = std::chrono::steady_clock::now();
         VisionData vd = state.getVision();
         
-        float v_x = 0.0f; // 水平速度 (欲发给 Yaw)
-        float v_y = 0.0f; // 垂直速度 (欲发给 Pitch)
+        float tgt_v_x = 0.0f; 
+        float tgt_v_y = 0.0f; 
 
         if (vd.target_found) {
-            if (std::abs(vd.ex) > DEADZONE) v_x = vd.ex * KP_YAW;
-            if (std::abs(vd.ey) > DEADZONE) v_y = vd.ey * KP_PITCH;
+            // Soft Deadzone Logic
+            float active_err_x = 0.0f;
+            if (vd.ex > DEADZONE) active_err_x = vd.ex - DEADZONE;
+            else if (vd.ex < -DEADZONE) active_err_x = vd.ex + DEADZONE;
 
-            // 限速
-            v_x = std::max(-0.6f, std::min(0.6f, v_x));
-            v_y = std::max(-0.6f, std::min(0.6f, v_y));
+            float active_err_y = 0.0f;
+            if (vd.ey > DEADZONE) active_err_y = vd.ey - DEADZONE;
+            else if (vd.ey < -DEADZONE) active_err_y = vd.ey + DEADZONE;
+
+            tgt_v_x = active_err_x * KP_YAW;
+            tgt_v_y = active_err_y * KP_PITCH;
+
+            tgt_v_x = std::clamp(tgt_v_x, -MAX_VEL, MAX_VEL);
+            tgt_v_y = std::clamp(tgt_v_y, -MAX_VEL, MAX_VEL);
         }
 
-        // 🚨 拨乱反正核心：
-        // 既然你的硬件把第一个参数当成了 Yaw，第二个当成了 Pitch
-        // 那么：updateCommand(水平速度 v_x, 垂直速度 v_y)
-        // 这样软件的 v_x 就会准确流向硬件的水平电机！
-        state.updateCommand(v_x, v_y);
+        // 🌟 修正后的对称线性斜坡 (Symmetric Linear Ramp)
+        // 无论加速还是减速，都以相同的 SYMMETRIC_STEP 平滑过渡
+        if (cur_v_yaw < tgt_v_x) {
+            cur_v_yaw = std::min(cur_v_yaw + SYMMETRIC_STEP, tgt_v_x);
+        } else if (cur_v_yaw > tgt_v_x) {
+            cur_v_yaw = std::max(cur_v_yaw - SYMMETRIC_STEP, tgt_v_x);
+        }
+
+        if (cur_v_pitch < tgt_v_y) {
+            cur_v_pitch = std::min(cur_v_pitch + SYMMETRIC_STEP, tgt_v_y);
+        } else if (cur_v_pitch > tgt_v_y) {
+            cur_v_pitch = std::max(cur_v_pitch - SYMMETRIC_STEP, tgt_v_y);
+        }
+
+        // Neuro-aligned command dispatch
+        state.updateCommand(cur_v_yaw, cur_v_pitch);
 
         std::this_thread::sleep_until(start + std::chrono::milliseconds(10));
     }
 }
 
 // ==========================================
-// 线程 3：串口下发
+// Thread 3: UART Dispatch
 // ==========================================
 void uartThread() {
     UartDriver uart;
@@ -177,7 +237,7 @@ void uartThread() {
 int main() {
     std::signal(SIGINT, signalHandler);
     std::cout << "==================================================" << std::endl;
-    std::cout << "[System] CineFollow DIAGNOSTIC NAKED BUILD Active" << std::endl;
+    std::cout << "[System] Iris Gimbal Active (Final Release v1.2.1)" << std::endl;
     std::cout << "==================================================" << std::endl;
 
     std::thread t1(visionThread);
