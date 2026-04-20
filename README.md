@@ -73,7 +73,7 @@ The project is built on the **Raspberry Pi 5** platform, pushing the boundaries 
 
 🔄 Software testing & debugging ··································································································✅[Completed]
 
-📢 Project promotion (social media & Hackaday) ·································································✅[Completed]
+📢 Project promotion  ·································································✅[Completed]
 
 ## **🎯 Key Features**
 ✅ **Real-time Object Tracking (YOLOv8 + Greedy Distance Matching)**
