@@ -83,17 +83,17 @@ The project is built on the **Raspberry Pi 5** platform, pushing the boundaries 
 
 ## **🚀 Development Progress**
 
-🔄 Hardware selection & procurement ························································································✅[Completed]
+🔄 Hardware selection & procurement ····································································································································✅[Completed]
 
-🔄 Initial code framework setup (C++ & sensor drivers) ·····································································✅[Completed]
+🔄 Initial code framework setup (C++ & sensor drivers) ··········································································································✅[Completed]
 
-🔄 Optimization of real-time data processing ···············································································✅[Completed]
+🔄 Optimization of real-time data processing ···························································································································✅[Completed]
 
-🔄 Enhancing user interaction  ····································· ·················· ·················· ·················✅[Completed]
+🔄 Enhancing user interaction  ····················································································································································✅[Completed]
 
-🔄 Software testing & debugging ····························································································✅[Completed]
+🔄 Software testing & debugging ············································································································································✅[Completed]
 
-📢 Project promotion  ··········································································· ··························✅[Completed]
+📢 Project promotion  ·································································································································································✅[Completed]
 
 ## **🎯 Key Features**
 ✅ **Real-time Object Tracking (YOLOv8 + Greedy Distance Matching)**
@@ -271,7 +271,7 @@ While the current IRIS prototype successfully demonstrates real-time, event-driv
 * **Autonomous Z-Axis (Auto-Zoom):** Integrating a third control axis via a follow-focus/zoom motor. By dynamically analyzing the bounding box depth scale in real-time, the system will autonomously adjust the lens focal length to maintain a constant subject framing proportion as they move across the z-axis.
 
 ---
-<p align="right">
+<p align="left">
   <small>
     <b>🤖 AI Usage Disclosure:</b> 
 Generative AI was utilized as a collaborative tool during development to assist in repository structural planning, technical documentation refinement (README/Manual), and C++ logic optimization. All core system architectures, hardware integrations, and real-time performance validations were manually implemented and verified for academic integrity.
