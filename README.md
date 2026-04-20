@@ -7,6 +7,9 @@
   <p><i>The autonomous, real-time camera operator for solo content creators.</i></p>
 
   <p>
+    <a href="https://realtime-gimbal-team.github.io/CineFollow-Docs/">
+      <img src="https://img.shields.io/badge/Docs-Project_Manual-blueviolet?style=for-the-badge&logo=gitbook" alt="Documentation">
+    </a>
     <a href="./docs/Final_Report_Yining_Liu.pdf">
       <img src="https://img.shields.io/badge/Report-Technical_Paper-green?style=for-the-badge&logo=read-the-docs" alt="Technical Report">
     </a>
@@ -33,7 +36,7 @@
 ### 📖 Quick Navigation
 > **Project for ENG 5220: Real Time Embedded Programming @ University of Glasgow**
 > 
-> [📄 Read Final Technical Report](./docs/) | [📦 Download 3D Print Models](./assets/3d_models/) | [🎬 Demo Video (YouTube)](INSERT_YOUTUBE_LINK_HERE) | [🚀 Latest Release](https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/releases/tag/v1.0.0-Final)
+> [🌐 Online Docs](https://realtime-gimbal-team.github.io/CineFollow-Docs/) | [📄 Read Final Technical Report](./docs/) | [📦 Download 3D Print Models](./assets/3d_models/) | [🎬 Demo Video (YouTube)](INSERT_YOUTUBE_LINK_HERE) | [🚀 Latest Release](https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal/releases/tag/v1.0.0-Final)
 
 ---
 ---
@@ -82,15 +85,15 @@ The project is built on the **Raspberry Pi 5** platform, pushing the boundaries 
 
 🔄 Hardware selection & procurement ························································································✅[Completed]
 
-🔄 Initial code framework setup (C++ & sensor drivers) ···················································✅[Completed]
+🔄 Initial code framework setup (C++ & sensor drivers) ·····································································✅[Completed]
 
-🔄 Optimization of real-time data processing ·········································································✅[Completed]
+🔄 Optimization of real-time data processing ···············································································✅[Completed]
 
-🔄 Enhancing user interaction  ·································✅[Completed]
+🔄 Enhancing user interaction  ····································· ·················· ·················· ·················✅[Completed]
 
-🔄 Software testing & debugging ··································································································✅[Completed]
+🔄 Software testing & debugging ····························································································✅[Completed]
 
-📢 Project promotion  ·································································✅[Completed]
+📢 Project promotion  ··········································································· ··························✅[Completed]
 
 ## **🎯 Key Features**
 ✅ **Real-time Object Tracking (YOLOv8 + Greedy Distance Matching)**
@@ -266,9 +269,11 @@ While the current IRIS prototype successfully demonstrates real-time, event-driv
 * **Payload Expansion & Infinite Yaw (Slip Rings):** The current GM3506 motors are optimized for smartphone payloads. Future mechanical iterations will integrate higher-torque motors (e.g., GM4108) and electrical slip rings, enabling infinite 360-degree continuous Yaw rotation for mirrorless and lightweight cinema cameras.
 * **Deep Re-Identification (ReID) Integration:** Upgrading the current Greedy Distance Matching algorithm to a lightweight ReID neural network (such as OSNet). This will allow IRIS to memorize the specific visual features (clothing, colors) of a target, ensuring an absolute lock-on even in highly crowded environments with crossing subjects.
 * **Autonomous Z-Axis (Auto-Zoom):** Integrating a third control axis via a follow-focus/zoom motor. By dynamically analyzing the bounding box depth scale in real-time, the system will autonomously adjust the lens focal length to maintain a constant subject framing proportion as they move across the z-axis.
-## **🔗 Relevant Links**
 
-[**Documentation 📝**]()  
-[**GitHub Repository 🔗**](https://github.com/Realtime-Gimbal-Team/Realtime-CineFollow-Gimbal)  
-[**Demo Video 🎥**]()  
-[**Social Media Promotion 📢**](https://www.tiktok.com/@embedded629?_r=1&_t=ZN-95cXb2197FG)
+---
+<p align="right">
+  <small>
+    <b>🤖 AI Usage Disclosure:</b> 
+Generative AI was utilized as a collaborative tool during development to assist in repository structural planning, technical documentation refinement (README/Manual), and C++ logic optimization. All core system architectures, hardware integrations, and real-time performance validations were manually implemented and verified for academic integrity.
+  </small>
+</p>
