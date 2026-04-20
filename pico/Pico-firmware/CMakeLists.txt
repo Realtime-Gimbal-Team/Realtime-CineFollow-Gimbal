@@ -1,10 +1,23 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Set the target platform
 set(PICO_PLATFORM rp2350)
 
-# 1. SDK and toolchain paths
-set(PICO_SDK_PATH "C:/Users/18249/.pico-sdk/sdk/2.2.0") 
-set(PICO_TOOLCHAIN_PATH "C:/Users/18249/.pico-sdk/toolchain/14_2_Rel1")
+# 1. SDK and Toolchain Paths (CRITICAL FIX FOR PORTABILITY)
+# We no longer use hardcoded "C:/Users/..." paths. 
+# CMake will now look for environment variables set by your PC or GitHub Actions.
+if (NOT PICO_SDK_PATH)
+    set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
+endif()
+
+if (NOT PICO_TOOLCHAIN_PATH)
+    set(PICO_TOOLCHAIN_PATH $ENV{PICO_TOOLCHAIN_PATH})
+endif()
+
+# Safety check: If PICO_SDK_PATH is still not found, throw a clear error
+if (NOT PICO_SDK_PATH)
+    message(FATAL_ERROR "PICO_SDK_PATH is not set. Please set the environment variable or pass -DPICO_SDK_PATH=...")
+endif()
 
 include(pico_sdk_import.cmake)
 project(pico_foc_project C CXX ASM)
@@ -28,7 +41,7 @@ target_sources(pico_foc PRIVATE ${SIMPLEFOC_SOURCES})
 # 4. Inject Arduino patches 
 target_compile_options(pico_foc PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/Arduino.h>")
 
-# 5.Header file path
+# 5. Header file paths
 target_include_directories(pico_foc PRIVATE 
     include 
     SimpleFOC_Core
@@ -40,7 +53,7 @@ target_include_directories(pico_foc PRIVATE
     SimpleFOC_Core/communication
 )
 
-# 6.Link the Pico low-level hardware libraries 
+# 6. Link the Pico low-level hardware libraries 
 target_link_libraries(pico_foc 
     pico_stdlib
     hardware_pwm      
