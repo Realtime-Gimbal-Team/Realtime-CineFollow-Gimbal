@@ -1,6 +1,5 @@
 name: Pico Firmware CI
 
-# Trigger: Runs on push/PR to refactor-structure
 on:
   push:
     branches: [ "refactor-structure" ]
@@ -31,23 +30,25 @@ jobs:
         git submodule update --init
 
     - name: 4. Map Directory and Configure CMake
-      env:
-        PICO_SDK_PATH: ${{ github.workspace }}/../pico-sdk
       run: |
         export PICO_SDK_PATH=$HOME/pico-sdk
         
-        # Use find to locate the directory containing CMakeLists.txt
-        # Excluding pico-sdk and hidden folders
-        SRC_DIR=$(find . -maxdepth 4 -name "CMakeLists.txt" | grep -v "pico-sdk" | head -n 1 | xargs dirname)
+        # 1. Search for the directory containing CMakeLists.txt
+        REL_DIR=$(find . -maxdepth 4 -name "CMakeLists.txt" | grep -v "pico-sdk" | head -n 1 | xargs dirname)
         
-        if [ -z "$SRC_DIR" ]; then
+        if [ -z "$REL_DIR" ]; then
           echo "FATAL ERROR: Could not locate CMakeLists.txt"
           exit 1
         fi
         
-        echo "Source found at: $SRC_DIR"
+        # 2. Convert to Absolute Path BEFORE entering the build folder
+        ABS_SRC_DIR=$(readlink -f "$REL_DIR")
+        echo "Source found at: $REL_DIR"
+        echo "Absolute Source Path: $ABS_SRC_DIR"
+        
+        # 3. Create build directory and run CMake using the absolute path
         mkdir -p build && cd build
-        cmake "$github_workspace/$SRC_DIR" -DCMAKE_BUILD_TYPE=Release -G Ninja
+        cmake "$ABS_SRC_DIR" -DCMAKE_BUILD_TYPE=Release -G Ninja
 
     - name: 5. Execute full compilation
       run: |
